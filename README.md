@@ -38,7 +38,6 @@ demuestra el núcleo de diseño de un módulo funcional.
 
 ## 2. Creatividad en la Presentación
 
-🎥 `[enlace aquí — video/cómic/historia que explique el problema a una audiencia no técnica]`
 
 ## 3. Fundamentos de Ingeniería de Software
 
