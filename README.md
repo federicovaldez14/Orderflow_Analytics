@@ -202,7 +202,7 @@ src/main/java/com/restaurant/
 
 | Integrante | Rol / contribución principal |
 |---|---|
-| Federico Valdez - Programador | Plasmar la idea |
-| Daniel Sanabria - Arquitecto | Pensar en la posible solucion al problema |
+| Federico Valdez | Programador - Plasmar la idea |
+| Daniel Sanabria | Arquitecto - Pensar en la posible solucion al problema |
 
 
