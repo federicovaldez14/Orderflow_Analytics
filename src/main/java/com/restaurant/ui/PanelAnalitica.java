@@ -25,9 +25,11 @@ public class PanelAnalitica extends JPanel {
     public PanelAnalitica(GestorPedidos gestor) {
         this.gestor = gestor;
         setLayout(new BorderLayout(10, 10));
-        setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        setBorder(BorderFactory.createEmptyBorder(14, 14, 14, 14));
+        setBackground(EstiloUI.FONDO);
 
         JPanel botones = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        botones.setOpaque(false);
         JButton btnMas = new JButton("Platos más pedidos");
         JButton btnMenos = new JButton("Platos menos pedidos");
         JButton btnTiempo = new JButton("Tiempo promedio de atención");

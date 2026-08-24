@@ -40,7 +40,34 @@ public class Pedido {
     }
 
     public void agregarItem(ItemPedido item) {
+        exigirEditable();
         items.add(item);
+    }
+
+    /**
+     * Permite editar un pedido en curso (agregar/quitar platos) mientras
+     * el mesero aún puede corregir la comanda — p. ej. el cliente pidió
+     * uno más, o se equivocaron de plato. Una vez el pedido llega a un
+     * estado terminal (Entregado o Cancelado) ya no tiene sentido de
+     * negocio seguir editándolo.
+     */
+    public void removerItem(ItemPedido item) {
+        exigirEditable();
+        items.remove(item);
+    }
+
+    /** true si el pedido todavía admite cambios en sus ítems. */
+    public boolean estaEditable() {
+        String nombre = estadoActual.getNombre();
+        return !nombre.equals("Entregado") && !nombre.equals("Cancelado");
+    }
+
+    private void exigirEditable() {
+        if (!estaEditable()) {
+            throw new IllegalStateException(
+                    "No se puede modificar el pedido #" + id + ": ya está en estado terminal ('"
+                            + estadoActual.getNombre() + "').");
+        }
     }
 
     public void agregarObservador(Notificador observador) {

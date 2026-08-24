@@ -16,7 +16,8 @@ public class PanelNotificaciones extends JPanel {
 
     public PanelNotificaciones() {
         setLayout(new GridLayout(1, 2, 10, 10));
-        setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        setBorder(BorderFactory.createEmptyBorder(14, 14, 14, 14));
+        setBackground(EstiloUI.FONDO);
 
         add(crearBloque("Pantalla de cocina", areaCocina));
         add(crearBloque("Buscapersonas del mesero", areaMesero));
@@ -25,7 +26,9 @@ public class PanelNotificaciones extends JPanel {
     private JPanel crearBloque(String titulo, JTextArea area) {
         area.setEditable(false);
         area.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        area.setBackground(EstiloUI.TARJETA);
         JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(EstiloUI.TARJETA);
         panel.setBorder(BorderFactory.createTitledBorder(titulo));
         panel.add(new JScrollPane(area), BorderLayout.CENTER);
         return panel;
