@@ -198,3 +198,11 @@ src/main/java/com/restaurant/
 - No hay concurrencia real (varios meseros tomando pedidos al mismo
   tiempo); la demo es secuencial.
 
+## 7. Créditos y Roles
+
+| Integrante | Rol / contribución principal |
+|---|---|
+| Federico Valdez - Programador | Plasmar la idea |
+| Daniel Sanabria - Arquitecto | Pensar en la posible solucion al problema |
+
+
