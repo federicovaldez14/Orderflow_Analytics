@@ -119,12 +119,6 @@ falso o una estrategia nueva sin modificar estas clases.
 | **Observer** (`Notificador`, `NotificadorCocina`, `NotificadorMesero`) | Comportamiento | Avisar a cocina y al mesero cada vez que un pedido cambia de estado, sin que `Pedido` conozca los canales concretos de notificación. | Se descartó que `Pedido` llamara directamente a `System.out.println` en cocina y mesero, porque eso acoplaría el modelo de dominio a la forma de mostrar la notificación (consola, app, impresora). |
 | **Strategy** (`EstrategiaReporte` y sus 3 implementaciones) | Comportamiento | Generar distintos reportes de consumo (más pedidos, menos pedidos, tiempo promedio) de forma intercambiable, sin un método gigante con banderas `tipoReporte == 1`. | Se descartó un único método `generarReporte(int tipo)` con `switch` porque, igual que en el caso de State, cada reporte nuevo obligaría a modificar ese método en vez de solo agregar una clase. |
 
-> El mínimo pedido por la rúbrica es 2 patrones (uno creacional y uno
-> estructural o de comportamiento). Este proyecto incluye 1 creacional
-> (Factory Method) y 3 de comportamiento (State, Observer, Strategy) para
-> mostrar con más evidencia cómo SOLID y patrones se refuerzan entre sí,
-> manteniendo el alcance dentro de lo visto en los Módulos 1 y 2.
-
 ### 4.3 Modelado UML
 
 Diagrama de clases completo (Mermaid, se renderiza nativamente en
@@ -204,16 +198,3 @@ src/main/java/com/restaurant/
 - No hay concurrencia real (varios meseros tomando pedidos al mismo
   tiempo); la demo es secuencial.
 
-## 7. Créditos y Roles
-
-| Integrante | Rol / contribución principal |
-|---|---|
-| ... | ... |
-
----
-
-### Recordatorio de entregables (según enunciado oficial)
-- [ ] Repositorio en GitHub con código y documentación
-- [ ] Este Wiki completo
-- [ ] Presentación creativa del problema
-- [ ] *(Opcional)* Video técnico explicando la solución (máx. 5 min)
