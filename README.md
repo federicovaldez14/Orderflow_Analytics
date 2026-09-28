@@ -51,9 +51,10 @@ bash perf/run-perf.sh baseline carga                            # Linux / macOS 
 ```bash
 git clone https://github.com/federicovaldez14/Orderflow_Analytics.git
 cd Orderflow_Analytics
-git checkout corte-2          # rama de trabajo del Corte 2
-git checkout -b mi-cambio     # una rama por tarea; se integra a corte-2 con pull request
+git pull                      # main al día antes de empezar
+git checkout -b mi-cambio     # una rama por tarea, creada desde main
 mvn verify                    # antes de subir: todo en verde
+git push -u origin mi-cambio  # luego pull request hacia main en GitHub
 ```
 
 - La CI (`.github/workflows`) corre `mvn verify` en cada push y pull request.
