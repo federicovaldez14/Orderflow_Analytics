@@ -1,55 +1,80 @@
 package com.restaurant.infraestructura.ui;
 
+import com.formdev.flatlaf.FlatDarkLaf;
+import com.formdev.flatlaf.FlatLaf;
+import com.formdev.flatlaf.fonts.inter.FlatInterFont;
+
 import javax.swing.*;
 import java.awt.*;
+import java.util.Map;
 
 /**
  * Paleta y helpers de estilo compartidos por toda la interfaz, para que
  * el "look" sea consistente entre pestañas sin repetir constantes de
  * color/fuente en cada panel (evita duplicar "magia" de estilo en 5
  * archivos distintos si mañana se quiere cambiar la paleta).
+ *
+ * Tema oscuro tipo POS con FlatLaf y la fuente Inter: la misma paleta que la
+ * versión web (src/main/resources/static/css/app.css), para que los dos
+ * adaptadores de entrada se vean como el mismo producto.
  */
 public final class EstiloUI {
+
+    static {
+        // La fuente se registra antes de crear las constantes Font de abajo.
+        FlatInterFont.install();
+    }
 
     private EstiloUI() {
     }
 
-    public static final Color FONDO = new Color(0xF6, 0xF1, 0xE7);           // crema cálido
-    public static final Color TARJETA = Color.WHITE;
-    public static final Color TEXTO_PRINCIPAL = new Color(0x3A, 0x2B, 0x1E); // espresso
-    public static final Color ACENTO = new Color(0xC0, 0x54, 0x2C);          // terracota
+    public static final Color FONDO = new Color(0x17, 0x18, 0x1B);           // superficie principal
+    public static final Color TARJETA = new Color(0x1E, 0x20, 0x24);         // tarjetas y paneles
+    public static final Color BORDE = new Color(0x2C, 0x2F, 0x35);
+    public static final Color TEXTO_PRINCIPAL = new Color(0xF2, 0xF0, 0xEB);
+    public static final Color TEXTO_SECUNDARIO = new Color(0xB3, 0xAF, 0xA8);
+    public static final Color ACENTO = new Color(0xE0, 0x70, 0x3C);          // terracota
+    public static final Color PELIGRO = new Color(0xFF, 0x8A, 0x82);
 
-    public static final Color LIBRE = new Color(0x4C, 0xAF, 0x50);           // verde
-    public static final Color CREADO = new Color(0xF5, 0xB0, 0x41);          // ámbar
-    public static final Color EN_PREPARACION = new Color(0xEB, 0x98, 0x4E);  // naranja
-    public static final Color LISTO = new Color(0x5D, 0xAD, 0xE2);           // azul
-    public static final Color CANCELADO = new Color(0x95, 0xA5, 0xA6);       // gris
+    // Colores de estado validados para daltonismo sobre la superficie oscura;
+    // el estado siempre se muestra también como texto.
+    public static final Color LIBRE = new Color(0x3A, 0x3D, 0x44);           // gris
+    public static final Color CREADO = new Color(0xC9, 0x85, 0x00);          // ámbar
+    public static final Color EN_PREPARACION = new Color(0x90, 0x85, 0xE9);  // violeta
+    public static final Color LISTO = new Color(0x19, 0x9E, 0x70);           // verde
+    public static final Color CANCELADO = new Color(0x55, 0x58, 0x5F);       // gris
 
-    public static final Font FUENTE_TITULO = new Font("SansSerif", Font.BOLD, 20);
-    public static final Font FUENTE_SUBTITULO = new Font("SansSerif", Font.BOLD, 14);
-    public static final Font FUENTE_TEXTO = new Font("SansSerif", Font.PLAIN, 13);
-    public static final Font FUENTE_MESA = new Font("SansSerif", Font.BOLD, 20);
+    public static final Font FUENTE_TITULO = new Font(FlatInterFont.FAMILY, Font.BOLD, 22);
+    public static final Font FUENTE_SUBTITULO = new Font(FlatInterFont.FAMILY_SEMIBOLD, Font.PLAIN, 14);
+    public static final Font FUENTE_TEXTO = new Font(FlatInterFont.FAMILY, Font.PLAIN, 13);
+    public static final Font FUENTE_MESA = new Font(FlatInterFont.FAMILY, Font.BOLD, 20);
 
     /** Aplica un tema visual consistente a toda la aplicación (llamar antes de crear ventanas). */
     public static void aplicarTemaGlobal() {
-        try {
-            for (UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
-                if ("Nimbus".equals(info.getName())) {
-                    UIManager.setLookAndFeel(info.getClassName());
-                    break;
-                }
-            }
-        } catch (Exception ignorada) {
-            // Si Nimbus no está disponible en el sistema, se sigue con el look and feel por defecto.
-        }
-        UIManager.put("control", FONDO);
-        UIManager.put("info", TARJETA);
-        UIManager.put("nimbusBase", ACENTO);
-        UIManager.put("nimbusBlueGrey", new Color(0xE4, 0xDA, 0xC8));
-        UIManager.put("text", TEXTO_PRINCIPAL);
-        UIManager.put("nimbusLightBackground", TARJETA);
-        UIManager.put("Table.alternateRowColor", new Color(0xFA, 0xF6, 0xEE));
+        FlatLaf.setGlobalExtraDefaults(Map.of(
+                "@accentColor", "#e0703c",
+                "@background", "#17181b"));
+        FlatLaf.setPreferredFontFamily(FlatInterFont.FAMILY);
+        FlatLaf.setPreferredSemiboldFontFamily(FlatInterFont.FAMILY_SEMIBOLD);
+        FlatDarkLaf.setup();
+
         UIManager.put("defaultFont", FUENTE_TEXTO);
+        UIManager.put("Component.arc", 10);
+        UIManager.put("Button.arc", 10);
+        UIManager.put("TextComponent.arc", 8);
+        UIManager.put("Component.focusWidth", 1);
+        UIManager.put("ScrollBar.thumbArc", 999);
+        UIManager.put("ScrollBar.width", 10);
+        UIManager.put("TabbedPane.tabHeight", 42);
+        UIManager.put("TabbedPane.selectedBackground", TARJETA);
+        UIManager.put("TabbedPane.underlineColor", ACENTO);
+        UIManager.put("TabbedPane.tabSeparatorsFullHeight", true);
+        UIManager.put("Table.rowHeight", 30);
+        UIManager.put("Table.showHorizontalLines", true);
+        UIManager.put("Table.gridColor", BORDE);
+        UIManager.put("Table.alternateRowColor", new Color(0x1B, 0x1D, 0x20));
+        UIManager.put("TitlePane.unifiedBackground", true);
+        FlatLaf.updateUI();
     }
 
     public static JLabel titulo(String texto) {

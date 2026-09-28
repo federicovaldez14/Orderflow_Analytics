@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Orderflow POS</title>
+  <meta name="description" content="Punto de venta web de Orderflow Analytics: salón, cocina, inventario y analítica.">
+  <link rel="icon" href="img/logo.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="rail" aria-label="Navegación principal">
+      <a class="marca" href="#/salon" aria-label="Orderflow, ir al salón">
+        <img src="img/logo.svg" alt="" width="32" height="32">
+        <span class="marca-texto">Orderflow<small>POS</small></span>
+      </a>
+      <nav class="nav" id="nav">
+        <a href="#/salon" data-vista="salon">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>
+          <span>Salón</span>
+        </a>
+        <a href="#/cocina" data-vista="cocina">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 13.9A4 4 0 0 1 7.5 6a5 5 0 0 1 9 0A4 4 0 0 1 18 13.9V20H6z"/><path d="M6 17h12"/></svg>
+          <span>Cocina</span>
+          <b class="insignia" id="insignia-cocina" hidden></b>
+        </a>
+        <a href="#/inventario" data-vista="inventario">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg>
+          <span>Inventario</span>
+          <b class="insignia alerta" id="insignia-inventario" hidden></b>
+        </a>
+        <a href="#/analitica" data-vista="analitica">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+          <span>Analítica</span>
+        </a>
+        <a href="#/actividad" data-vista="actividad">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+          <span>Actividad</span>
+        </a>
+      </nav>
+      <div class="rail-pie">
+        <div class="reloj" id="reloj">--:--</div>
+        <div class="conexion" id="conexion"><i></i><span>Conectando…</span></div>
+      </div>
+    </aside>
+
+    <main class="contenido" id="contenido" tabindex="-1"></main>
+  </div>
+
+  <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+  <div class="tooltip" id="tooltip" role="tooltip" hidden></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

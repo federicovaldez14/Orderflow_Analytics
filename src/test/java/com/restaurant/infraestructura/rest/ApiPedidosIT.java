@@ -107,6 +107,21 @@ class ApiPedidosIT {
     }
 
     @Test
+    @DisplayName("GET /api/notificaciones muestra en cocina el pedido recién creado")
+    void shouldExposeKitchenNotifications() {
+        int id = (Integer) rest.postForEntity("/api/pedidos", pedido(4, linea("Gaseosa", 1)), Map.class)
+                .getBody().get("id");
+
+        ResponseEntity<Map> resp = rest.getForEntity("/api/notificaciones", Map.class);
+
+        assertEquals(HttpStatus.OK, resp.getStatusCode());
+        List<String> cocina = (List<String>) resp.getBody().get("cocina");
+        assertTrue(cocina.stream().anyMatch(l -> l.contains("Pedido #" + id + " ")), "cocina: " + cocina);
+        assertTrue(resp.getBody().containsKey("mesero"));
+        assertTrue(resp.getBody().containsKey("inventario"));
+    }
+
+    @Test
     @DisplayName("Cancelar dos veces el mismo pedido: la segunda responde 409")
     void shouldNotCancelTwice() {
         int id = (Integer) rest.postForEntity("/api/pedidos", pedido(2, linea("Gaseosa", 1)), Map.class)

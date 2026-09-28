@@ -125,14 +125,14 @@ public class PanelAnalitica extends JPanel {
 
     private static JLabel valorKpi(boolean heroe) {
         JLabel l = new JLabel("-");
-        l.setFont(new Font("SansSerif", Font.BOLD, heroe ? 30 : 22));
+        l.setFont(EstiloUI.FUENTE_TITULO.deriveFont(heroe ? 30f : 22f));
         l.setForeground(GraficoBarras.TEXTO);
         return l;
     }
 
     private static JPanel tarjetaKpi(String etiqueta, JLabel valor) {
         JPanel p = new JPanel(new BorderLayout(0, 4));
-        p.setBackground(Color.WHITE);
+        p.setBackground(EstiloUI.TARJETA);
         p.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(GraficoBarras.REJILLA),
                 BorderFactory.createEmptyBorder(10, 12, 10, 12)));
@@ -158,7 +158,7 @@ public class PanelAnalitica extends JPanel {
 
         TarjetaGrafico(String titulo, GraficoBarras.Orientacion o) {
             super(new BorderLayout(0, 6));
-            setBackground(Color.WHITE);
+            setBackground(EstiloUI.TARJETA);
             setBorder(BorderFactory.createCompoundBorder(
                     BorderFactory.createLineBorder(GraficoBarras.REJILLA),
                     BorderFactory.createEmptyBorder(10, 12, 10, 12)));

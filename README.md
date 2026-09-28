@@ -22,16 +22,22 @@ gráficas**. Corte 2 de Diseño y Arquitectura de Software: el sistema del Corte
 (Windows: `winget install k6 --source winget`).
 
 ```bash
-# 1. Aplicación: abre el POS de escritorio y levanta la API en http://localhost:8080
+# 1. Aplicación: abre el POS de escritorio y levanta la web y la API en http://localhost:8080
 mvn spring-boot:run
 
 # o como jar
 mvn -DskipTests package
 java -jar target/orderflow-analytics-2.0.0.jar
 
-# solo la API, sin ventana (servidores, pruebas de carga)
+# solo la web y la API, sin ventana (servidores, pruebas de carga)
 java -jar target/orderflow-analytics-2.0.0.jar --orderflow.ui.enabled=false
 ```
+
+**Versión web:** con la aplicación corriendo, abre <http://localhost:8080> en el navegador (también
+desde una tablet o celular en la misma red, con la IP del computador). Tiene salón, cocina,
+inventario, analítica y actividad, y se actualiza sola cada pocos segundos. Es un tercer adaptador de
+entrada (HTML/CSS/JS en `src/main/resources/static/`) que usa la misma API REST: no toca el dominio,
+y lo que se haga en la web aparece en la ventana de escritorio y al revés.
 
 Al arrancar se cargan la carta (10 platos), 20 ingredientes con sus recetas y ~7 días de pedidos
 históricos para la analítica (`orderflow.demo.historico=true`, se puede apagar).
@@ -74,6 +80,7 @@ git push -u origin mi-cambio  # luego pull request hacia main en GitHub
 | `GET /api/inventario` · `/alertas` · `/movimientos?ingrediente=HUEVO` · `GET /api/pedidos/{id}/inventario` | Inventario y trazabilidad (Reto 1) |
 | `POST /api/inventario/{codigo}/reposicion` · `/ajuste` | Entradas y conteo físico |
 | `GET /api/analitica?periodo=HOY\|SEMANA\|TODO` · `GET /api/analitica/reportes/{id}` | Analítica (Reto 3) |
+| `GET /api/notificaciones` | Últimos avisos de cocina, mesero y stock bajo (los muestra la web) |
 | `GET /actuator/health` · `/actuator/prometheus` | Salud y métricas |
 
 Códigos: 400 dato inválido · 404 no existe · 409 el negocio no lo permite (mesa ocupada, stock
@@ -105,6 +112,10 @@ src/main/java/com/restaurant/
     ├── persistencia/                  salida JDBC + H2 + HikariCP
     ├── notificacion/                  salida: cocina, mesero, alertas de stock
     └── config/                        composition root y datos iniciales
+
+src/main/resources/static/             entrada WEB (POS en el navegador; consume /api)
+├── index.html  css/app.css            estructura y tema oscuro
+└── js/                                api.js (cliente REST), vistas/ (salón, cocina, inventario, analítica, actividad)
 ```
 
 La regla "el dominio no depende de la infraestructura" la verifica

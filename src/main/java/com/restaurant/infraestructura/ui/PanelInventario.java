@@ -21,7 +21,7 @@ import java.util.Map;
 public class PanelInventario extends JPanel {
 
     private static final DateTimeFormatter FECHA = DateTimeFormatter.ofPattern("dd/MM HH:mm:ss");
-    private static final Color ROJO_SUAVE = new Color(0xFD, 0xE2, 0xDF);
+    private static final Color ROJO_SUAVE = new Color(0x3A, 0x1F, 0x1E);
 
     private final ServicioInventario inventario;
 
@@ -42,7 +42,7 @@ public class PanelInventario extends JPanel {
         JPanel norte = new JPanel(new BorderLayout());
         norte.setOpaque(false);
         norte.add(EstiloUI.titulo("Inventario de ingredientes"), BorderLayout.WEST);
-        lblAlerta.setForeground(new Color(0xB0, 0x2A, 0x1C));
+        lblAlerta.setForeground(EstiloUI.PELIGRO);
         lblAlerta.setFont(EstiloUI.FUENTE_SUBTITULO);
         norte.add(lblAlerta, BorderLayout.EAST);
         add(norte, BorderLayout.NORTH);
@@ -183,7 +183,7 @@ public class PanelInventario extends JPanel {
             Component c = super.getTableCellRendererComponent(t, v, sel, foco, fila, col);
             boolean bajo = "BAJO MÍNIMO".equals(t.getModel().getValueAt(fila, 5));
             if (!sel) {
-                c.setBackground(bajo ? ROJO_SUAVE : Color.WHITE);
+                c.setBackground(bajo ? ROJO_SUAVE : t.getBackground());
             }
             return c;
         }

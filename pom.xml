@@ -79,6 +79,18 @@
       <artifactId>micrometer-registry-prometheus</artifactId>
     </dependency>
 
+    <!-- Tema moderno (oscuro) y fuente Inter para el POS de escritorio Swing -->
+    <dependency>
+      <groupId>com.formdev</groupId>
+      <artifactId>flatlaf</artifactId>
+      <version>3.5.4</version>
+    </dependency>
+    <dependency>
+      <groupId>com.formdev</groupId>
+      <artifactId>flatlaf-fonts-inter</artifactId>
+      <version>4.0</version>
+    </dependency>
+
     <!-- JDBC + pool de conexiones HikariCP (leccion PERF-01 del taller de carga:
          abrir una conexion por operacion fue el cuello de botella). -->
     <dependency>

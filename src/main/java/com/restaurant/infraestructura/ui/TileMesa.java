@@ -45,28 +45,47 @@ public class TileMesa extends JPanel {
         super.paintComponent(g);
         Graphics2D g2 = (Graphics2D) g.create();
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_LCD_HRGB);
 
         int w = getWidth();
         int h = getHeight();
 
-        g2.setColor(colorEstado);
-        g2.fillRoundRect(4, 4, w - 8, h - 8, 18, 18);
+        boolean libre = colorEstado.equals(EstiloUI.LIBRE);
+        Shape tarjeta = new java.awt.geom.RoundRectangle2D.Float(4, 4, w - 8, h - 8, 16, 16);
 
-        if (seleccionada) {
-            g2.setColor(EstiloUI.TEXTO_PRINCIPAL);
-            g2.setStroke(new BasicStroke(3));
-            g2.drawRoundRect(4, 4, w - 9, h - 9, 18, 18);
+        // Tarjeta oscura con una franja superior del color del estado (como en la web).
+        g2.setColor(EstiloUI.TARJETA);
+        g2.fill(tarjeta);
+        if (!libre) {
+            Shape recorte = g2.getClip();
+            g2.clip(tarjeta);
+            g2.setColor(colorEstado);
+            g2.fillRect(4, 4, w - 8, 4);
+            g2.setClip(recorte);
         }
+        g2.setColor(seleccionada ? EstiloUI.ACENTO : EstiloUI.BORDE);
+        g2.setStroke(new BasicStroke(seleccionada ? 2f : 1f));
+        g2.draw(tarjeta);
 
-        g2.setColor(Color.WHITE);
-        g2.setFont(EstiloUI.FUENTE_MESA);
-        String textoMesa = "Mesa " + numeroMesa;
-        FontMetrics fmTitulo = g2.getFontMetrics();
-        g2.drawString(textoMesa, (w - fmTitulo.stringWidth(textoMesa)) / 2, h / 2 - 4);
+        int x = 18;
+        g2.setFont(EstiloUI.FUENTE_TEXTO.deriveFont(Font.BOLD, 10f));
+        g2.setColor(EstiloUI.TEXTO_SECUNDARIO);
+        g2.drawString("MESA", x, 28);
 
-        g2.setFont(EstiloUI.FUENTE_TEXTO);
-        FontMetrics fmSub = g2.getFontMetrics();
-        g2.drawString(subtitulo, (w - fmSub.stringWidth(subtitulo)) / 2, h / 2 + 16);
+        g2.setFont(EstiloUI.FUENTE_MESA.deriveFont(28f));
+        g2.setColor(libre ? EstiloUI.TEXTO_SECUNDARIO : EstiloUI.TEXTO_PRINCIPAL);
+        g2.drawString(String.format("%02d", numeroMesa), x, 58);
+
+        // El subtítulo llega como "Estado · $total": el total arriba y el estado abajo, para que no se corte.
+        String[] partes = subtitulo.split(" · ", 2);
+        if (partes.length == 2) {
+            g2.setFont(EstiloUI.FUENTE_TEXTO.deriveFont(Font.BOLD, 15f));
+            g2.setColor(EstiloUI.TEXTO_PRINCIPAL);
+            g2.drawString(partes[1], x, h - 38);
+        }
+        g2.setFont(EstiloUI.FUENTE_TEXTO.deriveFont(Font.BOLD, 12f));
+        g2.setColor(libre ? EstiloUI.TEXTO_SECUNDARIO : colorEstado.brighter());
+        g2.drawString(partes[0], x, h - 18);
 
         g2.dispose();
     }

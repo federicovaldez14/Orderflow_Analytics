@@ -25,11 +25,11 @@ public class GraficoBarras extends JComponent {
 
     public enum Orientacion { HORIZONTAL, VERTICAL }
 
-    static final Color SERIE = new Color(0x2a, 0x78, 0xd6);
-    static final Color TEXTO = new Color(0x0b, 0x0b, 0x0b);
-    static final Color TEXTO_SECUNDARIO = new Color(0x52, 0x51, 0x4e);
-    static final Color REJILLA = new Color(0xE6, 0xE3, 0xDC);
-    private static final Font FUENTE = new Font("SansSerif", Font.PLAIN, 12);
+    static final Color SERIE = EstiloUI.ACENTO;
+    static final Color TEXTO = EstiloUI.TEXTO_PRINCIPAL;
+    static final Color TEXTO_SECUNDARIO = EstiloUI.TEXTO_SECUNDARIO;
+    static final Color REJILLA = EstiloUI.BORDE;
+    private static final Font FUENTE = EstiloUI.FUENTE_TEXTO.deriveFont(12f);
     private static final int GROSOR_MAX = 22;
     private static final int RADIO = 4;
 
@@ -42,7 +42,7 @@ public class GraficoBarras extends JComponent {
         setPreferredSize(new Dimension(420, 240));
         setToolTipText("");   // activa el tooltip por barra (getToolTipText(MouseEvent))
         setOpaque(true);
-        setBackground(Color.WHITE);
+        setBackground(EstiloUI.TARJETA);
     }
 
     public void mostrar(Reporte reporte) {

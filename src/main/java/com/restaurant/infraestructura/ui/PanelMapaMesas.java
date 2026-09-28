@@ -115,7 +115,7 @@ public class PanelMapaMesas extends JPanel {
 
         JPanel leyenda = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 4));
         leyenda.setOpaque(false);
-        leyenda.add(chipLeyenda("Libre", EstiloUI.LIBRE));
+        leyenda.add(chipLeyenda("Libre", EstiloUI.TEXTO_SECUNDARIO));
         leyenda.add(chipLeyenda("Creado", EstiloUI.CREADO));
         leyenda.add(chipLeyenda("En preparación", EstiloUI.EN_PREPARACION));
         leyenda.add(chipLeyenda("Listo", EstiloUI.LISTO));
