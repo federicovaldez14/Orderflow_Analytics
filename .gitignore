@@ -1,2 +1,7 @@
 out/
 *.class
+target/
+data/
+.idea/
+*.iml
+perf/results/*.log
