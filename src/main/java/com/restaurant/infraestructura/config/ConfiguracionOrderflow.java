@@ -1,11 +1,16 @@
 package com.restaurant.infraestructura.config;
 
 import com.restaurant.aplicacion.casodeuso.GestorPedidos;
+import com.restaurant.aplicacion.casodeuso.ServicioInventario;
+import com.restaurant.aplicacion.puerto.salida.AlertaInventario;
+import com.restaurant.aplicacion.puerto.salida.InventarioRepositorio;
 import com.restaurant.aplicacion.puerto.salida.MenuRepositorio;
 import com.restaurant.aplicacion.puerto.salida.PedidoRepositorio;
 import com.restaurant.dominio.observador.Notificador;
+import com.restaurant.infraestructura.notificacion.AlertasInventarioEnMemoria;
 import com.restaurant.infraestructura.notificacion.NotificadorCocina;
 import com.restaurant.infraestructura.notificacion.NotificadorMesero;
+import com.restaurant.infraestructura.persistencia.InventarioRepositorioJdbc;
 import com.restaurant.infraestructura.persistencia.MenuRepositorioJdbc;
 import com.restaurant.infraestructura.persistencia.PedidoRepositorioJdbc;
 import org.springframework.beans.factory.annotation.Value;
@@ -54,9 +59,27 @@ public class ConfiguracionOrderflow {
     }
 
     @Bean
+    public InventarioRepositorio inventarioRepositorio(DataSource dataSource) {
+        InventarioRepositorioJdbc repo = new InventarioRepositorioJdbc(dataSource);
+        repo.initSchema();
+        return repo;
+    }
+
+    @Bean
+    public AlertasInventarioEnMemoria alertasInventario() {
+        return new AlertasInventarioEnMemoria();
+    }
+
+    @Bean
+    public ServicioInventario servicioInventario(InventarioRepositorio repo, List<AlertaInventario> alertas,
+                                                 Clock reloj) {
+        return new ServicioInventario(repo, alertas, reloj);
+    }
+
+    @Bean
     public GestorPedidos gestorPedidos(PedidoRepositorio pedidos, MenuRepositorio menu,
-                                       List<Notificador> notificadores, Clock reloj,
-                                       @Value("${orderflow.mesas:10}") int numeroMesas) {
-        return new GestorPedidos(pedidos, menu, notificadores, numeroMesas, reloj);
+                                       ServicioInventario inventario, List<Notificador> notificadores,
+                                       Clock reloj, @Value("${orderflow.mesas:10}") int numeroMesas) {
+        return new GestorPedidos(pedidos, menu, inventario, notificadores, numeroMesas, reloj);
     }
 }

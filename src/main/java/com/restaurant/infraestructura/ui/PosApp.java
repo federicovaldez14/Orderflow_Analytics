@@ -1,6 +1,8 @@
 package com.restaurant.infraestructura.ui;
 
 import com.restaurant.aplicacion.casodeuso.GestorPedidos;
+import com.restaurant.aplicacion.casodeuso.ServicioInventario;
+import com.restaurant.infraestructura.notificacion.AlertasInventarioEnMemoria;
 import com.restaurant.infraestructura.notificacion.NotificadorEnMemoria;
 
 import javax.swing.*;
@@ -18,7 +20,8 @@ public class PosApp extends JFrame {
 
     private final JTabbedPane tabs = new JTabbedPane();
 
-    public PosApp(GestorPedidos gestor, NotificadorEnMemoria cocina, NotificadorEnMemoria mesero) {
+    public PosApp(GestorPedidos gestor, ServicioInventario inventario, AlertasInventarioEnMemoria alertas,
+                  NotificadorEnMemoria cocina, NotificadorEnMemoria mesero) {
         super("Orderflow Analytics — POS Restaurante — Corte 2");
 
         PanelMapaMesas[] mapaRef = new PanelMapaMesas[1];
@@ -38,6 +41,7 @@ public class PosApp extends JFrame {
         tabs.setFont(EstiloUI.FUENTE_SUBTITULO);
         tabs.addTab("Mapa de mesas", panelMapa);
         tabs.addTab("Lista de pedidos", panelPedidos);
+        tabs.addTab("Inventario", new PanelInventario(inventario, alertas));
         tabs.addTab("Notificaciones", new PanelNotificaciones(cocina, mesero));
         tabs.addTab("Analítica", new PanelAnalitica(gestor));
         tabs.addChangeListener(e -> refrescarVisible());
@@ -58,6 +62,8 @@ public class PosApp extends JFrame {
             ((PanelMapaMesas) visible).refrescar();
         } else if (visible instanceof PanelPedidosActivos) {
             ((PanelPedidosActivos) visible).refrescar();
+        } else if (visible instanceof PanelInventario) {
+            ((PanelInventario) visible).refrescar();
         }
     }
 }

@@ -17,7 +17,7 @@ public final class BaseDeDatosH2 {
 
     public static DataSource nueva() {
         JdbcDataSource ds = new JdbcDataSource();
-        ds.setURL("jdbc:h2:mem:it_" + UUID.randomUUID().toString().replace("-", "") + ";DB_CLOSE_DELAY=-1");
+        ds.setURL("jdbc:h2:mem:it_" + UUID.randomUUID().toString().replace("-", "") + ";DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=10000");
         ds.setUser("sa");
         ds.setPassword("");
         return ds;

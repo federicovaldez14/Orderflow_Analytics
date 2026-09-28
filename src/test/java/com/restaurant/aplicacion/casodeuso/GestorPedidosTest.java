@@ -6,6 +6,8 @@ import com.restaurant.aplicacion.puerto.salida.MenuRepositorio;
 import com.restaurant.aplicacion.puerto.salida.PedidoRepositorio;
 import com.restaurant.dominio.modelo.ItemPedido;
 import com.restaurant.dominio.modelo.Pedido;
+import com.restaurant.dominio.inventario.StockInsuficienteException;
+import com.restaurant.dominio.inventario.UnidadMedida;
 import com.restaurant.dominio.observador.Notificador;
 import com.restaurant.soporte.RelojFalso;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,7 +24,10 @@ import static com.restaurant.soporte.Datos.LIMONADA;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyList;
 import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -40,6 +45,7 @@ class GestorPedidosTest {
     private PedidoRepositorio pedidos;
     private MenuRepositorio menu;
     private Notificador notificador;
+    private ControlInventario inventario;
     private RelojFalso reloj;
     private GestorPedidos gestor;
 
@@ -48,8 +54,9 @@ class GestorPedidosTest {
         pedidos = mock(PedidoRepositorio.class);
         menu = mock(MenuRepositorio.class);
         notificador = mock(Notificador.class);
+        inventario = mock(ControlInventario.class);
         reloj = RelojFalso.el(2026, 9, 28, 13, 0);
-        gestor = new GestorPedidos(pedidos, menu, List.of(notificador), MESAS, reloj);
+        gestor = new GestorPedidos(pedidos, menu, inventario, List.of(notificador), MESAS, reloj);
 
         when(menu.buscarPorNombre("Bandeja Paisa")).thenReturn(Optional.of(BANDEJA));
         when(menu.buscarPorNombre("Limonada de coco")).thenReturn(Optional.of(LIMONADA));
@@ -208,7 +215,66 @@ class GestorPedidosTest {
     @DisplayName("Given cero mesas, When se construye el gestor, Then se rechaza la configuración")
     void shouldRejectZeroTables() {
         assertThrows(IllegalArgumentException.class,
-                () -> new GestorPedidos(pedidos, menu, List.of(), 0, reloj));
+                () -> new GestorPedidos(pedidos, menu, inventario, List.of(), 0, reloj));
+    }
+
+    // ---------- integración con inventario (Reto 1) ----------
+
+    @Test
+    @DisplayName("Given un pedido nuevo, When se crea, Then primero se reserva inventario y luego se guarda")
+    void shouldReserveInventoryWhenCreating() {
+        Pedido p = gestor.crearPedido(1, List.of(new LineaSolicitada("Bandeja Paisa", 1)));
+
+        verify(inventario).reservar(eq(p), anyList());
+        verify(pedidos).guardar(p);
+    }
+
+    @Test
+    @DisplayName("Given no alcanza el inventario, When se crea el pedido, Then no se guarda y se propaga el faltante")
+    void shouldNotSaveWhenStockIsInsufficient() {
+        // Arrange: el doble de inventario rechaza cualquier reserva
+        StockInsuficienteException sinHuevos = new StockInsuficienteException(List.of(
+                new StockInsuficienteException.Faltante("HUEVO", "Huevo", 1, 0, UnidadMedida.UNIDAD)));
+        doThrow(sinHuevos).when(inventario).reservar(any(), anyList());
+
+        // Act + Assert
+        assertThrows(StockInsuficienteException.class,
+                () -> gestor.crearPedido(1, List.of(new LineaSolicitada("Bandeja Paisa", 1))));
+        verify(pedidos, never()).guardar(any());
+    }
+
+    @Test
+    @DisplayName("Given falla el guardado, When se crea el pedido, Then se devuelve lo reservado (compensación)")
+    void shouldCompensateWhenSaveFails() {
+        doThrow(new IllegalStateException("BD caída")).when(pedidos).guardar(any());
+
+        assertThrows(IllegalStateException.class,
+                () -> gestor.crearPedido(1, List.of(new LineaSolicitada("Bandeja Paisa", 1))));
+        verify(inventario).liberar(any(), anyList(), eq("Creado"));
+    }
+
+    @Test
+    @DisplayName("Given un pedido en preparación, When se cancela, Then se liberan sus platos indicando el estado previo")
+    void shouldReleaseInventoryWhenCancelling() {
+        Pedido p = pedidoCon(5, BANDEJA);
+        p.avanzarEstado();
+        when(pedidos.buscarPorId(5)).thenReturn(Optional.of(p));
+
+        gestor.cancelar(5);
+
+        verify(inventario).liberar(eq(p), anyList(), eq("En preparación"));
+    }
+
+    @Test
+    @DisplayName("Given un pedido Creado, When se quita una línea, Then se libera solo ese plato")
+    void shouldReleaseOnlyRemovedLine() {
+        Pedido p = pedidoCon(5, BANDEJA);
+        p.agregarItem(new ItemPedido(LIMONADA, 1));
+        when(pedidos.buscarPorId(5)).thenReturn(Optional.of(p));
+
+        gestor.quitarLinea(5, 0);
+
+        verify(inventario).liberar(eq(p), anyList(), eq("Creado"));
     }
 
     private Pedido pedidoCon(int id, com.restaurant.dominio.modelo.Plato plato) {

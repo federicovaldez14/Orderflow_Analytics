@@ -35,18 +35,20 @@ public class GestorPedidos {
 
     private final PedidoRepositorio pedidos;
     private final MenuRepositorio menu;
+    private final ControlInventario inventario;
     private final List<Notificador> notificadores;
     private final int numeroMesas;
     private final Clock reloj;
     private final ConcurrentHashMap<String, ReentrantLock> candados = new ConcurrentHashMap<>();
 
-    public GestorPedidos(PedidoRepositorio pedidos, MenuRepositorio menu,
+    public GestorPedidos(PedidoRepositorio pedidos, MenuRepositorio menu, ControlInventario inventario,
                          List<Notificador> notificadores, int numeroMesas, Clock reloj) {
         if (numeroMesas <= 0) {
             throw new IllegalArgumentException("El restaurante debe tener al menos una mesa");
         }
         this.pedidos = pedidos;
         this.menu = menu;
+        this.inventario = inventario;
         this.notificadores = List.copyOf(notificadores);
         this.numeroMesas = numeroMesas;
         this.reloj = reloj;
@@ -76,7 +78,9 @@ public class GestorPedidos {
             for (LineaSolicitada linea : lineas) {
                 pedido.agregarItem(new ItemPedido(platoDeLaCarta(linea.plato()), linea.cantidad()));
             }
-            pedidos.guardar(pedido);
+            // Reto 1: si no alcanza el inventario, el pedido no se crea.
+            inventario.reservar(pedido, pedido.getItems());
+            guardarOCompensar(pedido, pedido.getItems());
             conObservadores(pedido);
             notificarCreacion(pedido);
             return pedido;
@@ -88,7 +92,8 @@ public class GestorPedidos {
             Pedido pedido = cargar(pedidoId);
             ItemPedido item = new ItemPedido(platoDeLaCarta(linea.plato()), linea.cantidad());
             pedido.agregarItem(item);
-            pedidos.guardar(pedido);
+            inventario.reservar(pedido, List.of(item));
+            guardarOCompensar(pedido, List.of(item));
             return pedido;
         });
     }
@@ -96,8 +101,10 @@ public class GestorPedidos {
     public Pedido quitarLinea(int pedidoId, int indiceLinea) {
         return conCandado("pedido-" + pedidoId, () -> {
             Pedido pedido = cargar(pedidoId);
-            pedido.removerLinea(indiceLinea);
+            String estadoAntes = pedido.getEstadoNombre();
+            ItemPedido quitado = pedido.removerLinea(indiceLinea);
             pedidos.guardar(pedido);
+            inventario.liberar(pedido, List.of(quitado), estadoAntes);
             return pedido;
         });
     }
@@ -118,12 +125,14 @@ public class GestorPedidos {
     public Pedido cancelar(int pedidoId) {
         return conCandado("pedido-" + pedidoId, () -> {
             Pedido pedido = cargar(pedidoId);
+            String estadoAntes = pedido.getEstadoNombre();
             try {
                 pedido.cancelar();
             } catch (IllegalStateException e) {
                 throw new ReglaNegocioException(e.getMessage());
             }
             pedidos.guardar(pedido);
+            inventario.liberar(pedido, pedido.getItems(), estadoAntes);
             return pedido;
         });
     }
@@ -156,6 +165,21 @@ public class GestorPedidos {
     // ------------------------------------------------------------------
     // Utilidades
     // ------------------------------------------------------------------
+
+    /**
+     * El inventario ya se descontó; si guardar el pedido falla, se devuelve
+     * lo descontado para no dejar ingredientes "vendidos" en un pedido que no
+     * existe (compensación manual: el inventario y los pedidos no comparten
+     * una transacción, ver límites en docs/arquitectura.md).
+     */
+    private void guardarOCompensar(Pedido pedido, List<ItemPedido> reservados) {
+        try {
+            pedidos.guardar(pedido);
+        } catch (RuntimeException e) {
+            inventario.liberar(pedido, reservados, "Creado");
+            throw e;
+        }
+    }
 
     private Pedido cargar(int pedidoId) {
         return conObservadores(obtener(pedidoId));

@@ -1,5 +1,7 @@
 package com.restaurant.infraestructura.rest;
 
+import com.restaurant.infraestructura.config.DatosIniciales;
+import com.restaurant.soporte.LimpiadorBD;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {"orderflow.ui.enabled=false",
-                "spring.datasource.url=jdbc:h2:mem:api_pedidos_it;DB_CLOSE_DELAY=-1"})
+                "spring.datasource.url=jdbc:h2:mem:api_pedidos_it;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=10000"})
 class ApiPedidosIT {
 
     @Autowired
@@ -37,9 +39,12 @@ class ApiPedidosIT {
     @Autowired
     private DataSource dataSource;
 
+    @Autowired
+    private DatosIniciales datosIniciales;
+
     @BeforeEach
     void limpiar() {
-        com.restaurant.soporte.LimpiadorBD.limpiar(dataSource);
+        LimpiadorBD.limpiar(dataSource, datosIniciales);
     }
 
     @Test

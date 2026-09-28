@@ -2,6 +2,7 @@ package com.restaurant.infraestructura.rest;
 
 import com.restaurant.aplicacion.excepcion.RecursoNoEncontradoException;
 import com.restaurant.aplicacion.excepcion.ReglaNegocioException;
+import com.restaurant.dominio.inventario.StockInsuficienteException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  *   IllegalArgumentException / JSON mal formado -> 400 (dato inválido)
  *   RecursoNoEncontradoException               -> 404
  *   ReglaNegocioException / IllegalStateException -> 409 (el negocio no lo permite ahora)
+ *   StockInsuficienteException                 -> 409 con el detalle de lo que falta
  */
 @RestControllerAdvice
 public class ManejadorErrores {
@@ -32,6 +34,12 @@ public class ManejadorErrores {
     @ExceptionHandler({ReglaNegocioException.class, IllegalStateException.class})
     public ResponseEntity<Dtos.ErrorDto> conflicto(RuntimeException e) {
         return respuesta(HttpStatus.CONFLICT, e.getMessage());
+    }
+
+    @ExceptionHandler(StockInsuficienteException.class)
+    public ResponseEntity<Dtos.ErrorStockDto> sinStock(StockInsuficienteException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(new Dtos.ErrorStockDto(
+                HttpStatus.CONFLICT.value(), "Stock insuficiente", e.getMessage(), e.getFaltantes()));
     }
 
     private static ResponseEntity<Dtos.ErrorDto> respuesta(HttpStatus status, String mensaje) {

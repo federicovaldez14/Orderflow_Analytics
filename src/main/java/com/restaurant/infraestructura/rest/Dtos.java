@@ -1,5 +1,7 @@
 package com.restaurant.infraestructura.rest;
 
+import com.restaurant.dominio.inventario.Ingrediente;
+import com.restaurant.dominio.inventario.StockInsuficienteException;
 import com.restaurant.dominio.modelo.ItemPedido;
 import com.restaurant.dominio.modelo.Pedido;
 import com.restaurant.dominio.modelo.Plato;
@@ -51,5 +53,25 @@ public final class Dtos {
     }
 
     public record ErrorDto(int status, String error, String mensaje) {
+    }
+
+    public record ErrorStockDto(int status, String error, String mensaje,
+                                List<StockInsuficienteException.Faltante> faltantes) {
+    }
+
+    // ---------- Inventario (Reto 1) ----------
+
+    public record IngredienteDto(String codigo, String nombre, String unidad, long stock, long stockMinimo,
+                                 boolean bajoMinimo) {
+        static IngredienteDto de(Ingrediente i) {
+            return new IngredienteDto(i.getCodigo(), i.getNombre(), i.getUnidad().getSimbolo(), i.getStock(),
+                    i.getStockMinimo(), i.bajoMinimo());
+        }
+    }
+
+    public record CantidadDto(long cantidad, String nota) {
+    }
+
+    public record ConteoDto(long stockContado, String nota) {
     }
 }

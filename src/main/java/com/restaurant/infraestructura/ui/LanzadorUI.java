@@ -1,6 +1,8 @@
 package com.restaurant.infraestructura.ui;
 
 import com.restaurant.aplicacion.casodeuso.GestorPedidos;
+import com.restaurant.aplicacion.casodeuso.ServicioInventario;
+import com.restaurant.infraestructura.notificacion.AlertasInventarioEnMemoria;
 import com.restaurant.infraestructura.notificacion.NotificadorCocina;
 import com.restaurant.infraestructura.notificacion.NotificadorMesero;
 import org.slf4j.Logger;
@@ -29,11 +31,16 @@ public class LanzadorUI implements ApplicationRunner {
     private static final Logger LOG = LoggerFactory.getLogger(LanzadorUI.class);
 
     private final GestorPedidos gestor;
+    private final ServicioInventario inventario;
+    private final AlertasInventarioEnMemoria alertas;
     private final NotificadorCocina cocina;
     private final NotificadorMesero mesero;
 
-    public LanzadorUI(GestorPedidos gestor, NotificadorCocina cocina, NotificadorMesero mesero) {
+    public LanzadorUI(GestorPedidos gestor, ServicioInventario inventario, AlertasInventarioEnMemoria alertas,
+                      NotificadorCocina cocina, NotificadorMesero mesero) {
         this.gestor = gestor;
+        this.inventario = inventario;
+        this.alertas = alertas;
         this.cocina = cocina;
         this.mesero = mesero;
     }
@@ -46,7 +53,7 @@ public class LanzadorUI implements ApplicationRunner {
         }
         SwingUtilities.invokeLater(() -> {
             EstiloUI.aplicarTemaGlobal();
-            new PosApp(gestor, cocina, mesero).setVisible(true);
+            new PosApp(gestor, inventario, alertas, cocina, mesero).setVisible(true);
         });
     }
 }
