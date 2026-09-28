@@ -1,19 +1,33 @@
 #!/usr/bin/env bash
-# Igual que run-perf.ps1, para Linux/macOS/Git Bash. Uso: bash perf/run-perf.sh [escenarios...]
-set -euo pipefail
-ESCENARIOS=("${@:-baseline carga}")
-mvn -q -DskipTests package
+# Igual que run-perf.ps1, para Linux/macOS/Git Bash.
+# Uso: CACHE=3 MEMORIA=1g bash perf/run-perf.sh baseline carga      (CACHE=0 = sin cache, el "antes")
+set -uo pipefail
+CACHE=${CACHE:-3}; MEMORIA=${MEMORIA:-1g}; SUF="cache$CACHE"
+ESCENARIOS=("$@"); [ ${#ESCENARIOS[@]} -eq 0 ] && ESCENARIOS=(baseline carga)
+mkdir -p perf/results
+vivo() { curl -sf -m 5 http://localhost:8080/actuator/health >/dev/null; }
+caida() { echo "!! Servicio caido durante: $1"; tail -20 perf/results/app.log; echo "Servicio caido durante: $1 (cache=$CACHE, memoria=$MEMORIA)" > "perf/results/CAIDA-$SUF.txt"; exit 1; }
+mvn -q -DskipTests package || exit 1
 JAR=$(ls target/orderflow-analytics-*.jar | head -1)
-java -jar "$JAR" --orderflow.ui.enabled=false --orderflow.mesas=1000 > perf/results/app.log 2>&1 &
+java -Xmx"$MEMORIA" -XX:+ExitOnOutOfMemoryError -jar "$JAR" --orderflow.ui.enabled=false --orderflow.mesas=1000 \
+  --orderflow.analitica.cache-segundos="$CACHE" > perf/results/app.log 2>&1 &
 APP=$!
-trap 'kill $APP' EXIT
-for i in $(seq 1 60); do curl -sf http://localhost:8080/actuator/health >/dev/null && break; sleep 1; done
-k6 run -e SCENARIO=baseline perf/scripts/analitica_k6.js || true
-cp perf/results/analitica-baseline.md perf/results/analitica-baseline-antes.md
-for e in ${ESCENARIOS[@]}; do
-  k6 run -e SCENARIO="$e" perf/scripts/flujo_pedidos_k6.js || true
-  curl -s http://localhost:8080/actuator/metrics/http.server.requests > "perf/results/actuator-requests-$e.json"
-  curl -s http://localhost:8080/actuator/metrics/hikaricp.connections.pending > "perf/results/actuator-hikari-pending-$e.json"
+trap 'kill $APP 2>/dev/null' EXIT
+for i in $(seq 1 90); do vivo && break; sleep 1; done
+vivo || caida arranque
+k6 run -e SCENARIO=baseline perf/scripts/analitica_k6.js
+cp perf/results/analitica-baseline.md "perf/results/analitica-baseline-antes-$SUF.md"
+vivo || caida "analitica baseline"
+for e in "${ESCENARIOS[@]}"; do
+  k6 run -e SCENARIO="$e" perf/scripts/flujo_pedidos_k6.js
+  vivo || caida "flujo $e"
+  cp "perf/results/flujo-pedidos-$e.md" "perf/results/flujo-pedidos-$e-$SUF.md"
+  curl -s http://localhost:8080/actuator/metrics/http.server.requests > "perf/results/actuator-requests-$e-$SUF.json"
+  curl -s http://localhost:8080/actuator/metrics/hikaricp.connections.pending > "perf/results/actuator-hikari-pending-$e-$SUF.json"
 done
-k6 run -e SCENARIO=carga perf/scripts/analitica_k6.js || true
-echo "Pedidos al final: $(curl -s http://localhost:8080/api/pedidos | grep -o '"id"' | wc -l)" | tee perf/results/pedidos-al-final.txt
+N=$(curl -s "http://localhost:8080/api/analitica?periodo=TODO" | grep -o '"pedidosConsiderados":[0-9]*' | cut -d: -f2)
+echo "Pedidos en la base: $N" | tee "perf/results/pedidos-$SUF.txt"
+k6 run -e SCENARIO=carga perf/scripts/analitica_k6.js
+cp perf/results/analitica-carga.md "perf/results/analitica-carga-despues-$SUF.md"
+vivo || caida "analitica carga (despues de $N pedidos)"
+echo "Todo termino con el servicio vivo."

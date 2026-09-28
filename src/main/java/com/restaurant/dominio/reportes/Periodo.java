@@ -5,6 +5,7 @@ import com.restaurant.dominio.modelo.Pedido;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /** Filtro de tiempo del panel de analítica, según la hora de creación del pedido. */
@@ -23,19 +24,24 @@ public enum Periodo {
         return etiqueta;
     }
 
-    public List<Pedido> filtrar(List<Pedido> pedidos, LocalDateTime ahora) {
-        LocalDateTime desde;
+    /** Desde cuándo cuenta el periodo; vacío = todo el histórico. */
+    public Optional<LocalDateTime> desde(LocalDateTime ahora) {
         switch (this) {
             case HOY:
-                desde = ahora.toLocalDate().atStartOfDay();
-                break;
+                return Optional.of(ahora.toLocalDate().atStartOfDay());
             case SEMANA:
-                desde = LocalDate.from(ahora).minusDays(6).atStartOfDay();
-                break;
+                return Optional.of(LocalDate.from(ahora).minusDays(6).atStartOfDay());
             default:
-                return List.copyOf(pedidos);
+                return Optional.empty();
         }
-        return pedidos.stream().filter(p -> !p.getHoraCreacion().isBefore(desde)).collect(Collectors.toList());
+    }
+
+    public List<Pedido> filtrar(List<Pedido> pedidos, LocalDateTime ahora) {
+        Optional<LocalDateTime> desde = desde(ahora);
+        if (desde.isEmpty()) {
+            return List.copyOf(pedidos);
+        }
+        return pedidos.stream().filter(p -> !p.getHoraCreacion().isBefore(desde.get())).collect(Collectors.toList());
     }
 
     @Override

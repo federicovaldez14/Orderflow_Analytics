@@ -134,4 +134,22 @@ class PedidoRepositorioJdbcIT {
     void shouldNotRepeatIds() {
         assertNotEquals(repo.siguienteId(), repo.siguienteId());
     }
+
+    @Test
+    @DisplayName("listarCreadosDesde trae solo los pedidos desde la fecha indicada (límite inclusivo)")
+    void shouldListOrdersCreatedSince() {
+        Pedido temprano = new Pedido(repo.siguienteId(), 1, reloj);
+        temprano.agregarItem(new ItemPedido(GASEOSA, 1));
+        repo.guardar(temprano);
+        reloj.avanzarMinutos(60);
+        Pedido tarde = new Pedido(repo.siguienteId(), 2, reloj);
+        tarde.agregarItem(new ItemPedido(GASEOSA, 1));
+        repo.guardar(tarde);
+
+        List<Pedido> desdeTarde = repo.listarCreadosDesde(tarde.getHoraCreacion());
+
+        assertEquals(1, desdeTarde.size());
+        assertEquals(tarde.getId(), desdeTarde.get(0).getId());
+        assertEquals(2, repo.listarCreadosDesde(temprano.getHoraCreacion()).size());
+    }
 }

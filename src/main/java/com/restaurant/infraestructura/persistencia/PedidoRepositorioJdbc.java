@@ -59,6 +59,7 @@ public class PedidoRepositorioJdbc implements PedidoRepositorio {
                     " hora_entregado TIMESTAMP," +
                     " hora_cancelado TIMESTAMP)");
             st.execute("CREATE INDEX IF NOT EXISTS idx_pedido_mesa_activo ON pedido(mesa, activo)");
+            st.execute("CREATE INDEX IF NOT EXISTS idx_pedido_creacion ON pedido(hora_creacion)");
             st.execute("CREATE TABLE IF NOT EXISTS item_pedido(" +
                     " pedido_id INT NOT NULL," +
                     " linea INT NOT NULL," +
@@ -124,6 +125,11 @@ public class PedidoRepositorioJdbc implements PedidoRepositorio {
     @Override
     public List<Pedido> listarTodos() {
         return consultar("SELECT " + COLUMNAS_PEDIDO + " FROM pedido ORDER BY id");
+    }
+
+    @Override
+    public List<Pedido> listarCreadosDesde(LocalDateTime desde) {
+        return consultar("SELECT " + COLUMNAS_PEDIDO + " FROM pedido WHERE hora_creacion >= ? ORDER BY id", desde);
     }
 
     /** Solo para pruebas: deja las tablas vacías. */

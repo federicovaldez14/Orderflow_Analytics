@@ -2,6 +2,7 @@ package com.restaurant.aplicacion.puerto.salida;
 
 import com.restaurant.dominio.modelo.Pedido;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -27,4 +28,11 @@ public interface PedidoRepositorio {
     Optional<Pedido> buscarActivoPorMesa(int mesa);
 
     List<Pedido> listarTodos();
+
+    /**
+     * Pedidos creados desde una fecha (inclusive). Permite a la analítica
+     * filtrar HOY / SEMANA en la base de datos en vez de traer todo el
+     * historial a memoria.
+     */
+    List<Pedido> listarCreadosDesde(LocalDateTime desde);
 }

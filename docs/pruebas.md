@@ -53,7 +53,7 @@ flowchart TB
 | `aplicacion/casodeuso/GestorPedidosTest` (21) | base, R1 | Mesa 0/1/10/11, mesa ocupada, plato inexistente, avanzar/cancelar terminados, orden reservar→guardar, **no guardar si no hay stock**, compensación si falla el guardado | Mocks de `PedidoRepositorio`, `MenuRepositorio`, `ControlInventario`, `Notificador` |
 | `aplicacion/casodeuso/ServicioInventarioTest` (12) | R1 | Qué se descuenta y con qué motivo (captor), alerta solo al cruzar el mínimo, devolución vs merma, reposición, ajuste por conteo | Mocks de `InventarioRepositorio`, `AlertaInventario`; `ArgumentCaptor` |
 | `aplicacion/casodeuso/ServicioCuentaTest` (3) | R2 | Pedido existente, inexistente, cancelado | Mock de `PedidoRepositorio` |
-| `aplicacion/casodeuso/ServicioAnaliticaTest` (3) | R3 | Panel completo, filtro por periodo, reporte por id | Mock de `PedidoRepositorio` |
+| `aplicacion/casodeuso/ServicioAnaliticaTest` (7) | R3 | Panel completo, filtro por periodo en SQL, reporte por id, **caché: vigencia (límite exacto 3 s) y 20 usuarios simultáneos → 1 solo cálculo** | Mock de `PedidoRepositorio` + stub lento hecho a mano |
 | `arquitectura/ReglasDeDependenciaTest` (3) | estilo | `dominio` y `aplicacion` no importan infraestructura, Spring, JDBC ni Swing | – |
 
 Todas siguen **AAA** (comentarios `// Arrange`, `// Act`, `// Assert` en las que no son de una
@@ -87,7 +87,7 @@ del CI).
 
 | Clase | Tipo | Frontera | Casos principales |
 |---|---|---|---|
-| `persistencia/PedidoRepositorioJdbcIT` (6) | Integración | `PedidoRepositorio` ↔ JDBC ↔ H2 | Guardar/leer con líneas y horas, actualizar estado, reemplazar líneas, activo por mesa, listar, secuencia |
+| `persistencia/PedidoRepositorioJdbcIT` (7) | Integración | `PedidoRepositorio` ↔ JDBC ↔ H2 | Guardar/leer con líneas y horas, actualizar estado, reemplazar líneas, activo por mesa, listar, filtrar por fecha, secuencia |
 | `persistencia/InventarioRepositorioJdbcIT` (7) | Integración | `InventarioRepositorio` ↔ JDBC ↔ H2 | Descuento con trazabilidad, **todo o nada**, descontar hasta 0, entrada y merma, `CHECK stock >= 0`, recetas, **40 hilos por 1 huevo con 10 en stock → exactamente 10 ventas** |
 | `rest/ApiPedidosIT` (5) | Sistema (caja negra) | HTTP → REST → casos de uso → JDBC → H2 | Carta, **flujo completo crear → Entregado**, mesa ocupada 409, errores 400/404, cancelar dos veces 409 |
 | `rest/ApiInventarioIT` (6) | Sistema | idem + inventario | Venta descuenta y queda trazada por pedido, cancelar en *Creado* devuelve, en preparación registra merma, **sin stock → 409 y no se crea el pedido**, reposición, alertas |
@@ -134,23 +134,33 @@ herramientas trabajan sobre navegador. Queda registrado como límite en
 
 ### 6.2 Carga
 
+Se ejecuta dos veces para comparar: `run-perf.ps1 -CacheAnalitica 0` (antes de la mitigación) y
+`run-perf.ps1 -CacheAnalitica 3` (después). Los archivos llevan el sufijo `-cache0` / `-cache3`.
+
 | Escenario | Throughput (req/s) | p95 total (ms) | p95 crear pedido (ms) | Errores | ¿Cumple SLO? |
 |---|---|---|---|---|---|
 | flujo baseline (10 VUs) | | | | | |
 | flujo carga (50 VUs) | | | | | |
 | flujo estrés / pico (opcional) | | | | | |
 | analítica baseline, antes (≈180 pedidos) | | | – | | |
-| analítica carga, después (miles de pedidos) | | | – | | |
+| analítica carga, después de cargar pedidos — **sin caché** | servicio caído a los ~174 s (1.ª corrida) | | – | superó `http_req_failed` y `checks` | No |
+| analítica carga, después de cargar pedidos — **con caché 3 s** | | | – | | |
+
+**Hallazgo (1.ª corrida):** con decenas de miles de pedidos en la base y 30 usuarios consultando la
+analítica, el servicio dejó de responder. Detalle, causa y mitigación en
+[`perf/README.md` §7](../perf/README.md#7-hallazgo-de-la-primera-ejecución).
 
 ### 6.3 Análisis (guía para interpretar lo medido)
 
 Contraste los resultados con las hipótesis que se escribieron **antes** de ejecutar
 ([`perf/README.md` §6](../perf/README.md#6-hipótesis-de-cuello-de-botella-escritas-antes-de-medir)):
 
-1. **¿El p95 de la analítica subió entre "antes" y "después"?** Si subió en proporción al número de
-   pedidos, el cuello de botella es el cálculo O(n) de `ServicioAnalitica` (lee todos los pedidos
-   con sus líneas). La arquitectura lo mitiga sin tocar el dominio: un adaptador de lectura con
-   agregados precalculados (CQRS) detrás de un puerto nuevo.
+1. **Analítica (hipótesis 1, observada en la 1.ª corrida).** Sin caché, el costo O(n) de
+   `ServicioAnalitica` multiplicado por 30 usuarios simultáneos tumbó el servicio. Compare la fila
+   *sin caché* contra *con caché 3 s*: con la mitigación debe quedar vivo y el p95 debe depender poco
+   del tamaño del historial (solo una consulta cada 3 s paga el cálculo). Lo que la arquitectura
+   permitió: la mitigación cambió un caso de uso y un adaptador, no el dominio ni los controladores;
+   la solución de fondo (CQRS) sería un puerto de lectura nuevo.
 2. **¿`crear_pedido` es el endpoint más lento del flujo?** Es la única operación que abre la
    transacción de inventario; con muchos VUs, los pedidos que comparten ingredientes esperan el
    candado de fila. Si además `hikaricp.connections.pending` > 0 en `actuator-hikari-pending-*.json`,

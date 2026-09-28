@@ -91,7 +91,8 @@ public class ConfiguracionOrderflow {
     }
 
     @Bean
-    public ServicioAnalitica servicioAnalitica(PedidoRepositorio pedidos, Clock reloj) {
-        return new ServicioAnalitica(pedidos, reloj);
+    public ServicioAnalitica servicioAnalitica(PedidoRepositorio pedidos, Clock reloj,
+                                               @Value("${orderflow.analitica.cache-segundos:3}") long cacheSegundos) {
+        return new ServicioAnalitica(pedidos, reloj, java.time.Duration.ofSeconds(cacheSegundos));
     }
 }

@@ -5,3 +5,5 @@ data/
 .idea/
 *.iml
 perf/results/*.log
+.vscode/
+.jqwik-database

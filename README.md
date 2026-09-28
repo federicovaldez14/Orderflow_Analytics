@@ -46,6 +46,22 @@ powershell -ExecutionPolicy Bypass -File perf\run-perf.ps1      # Windows
 bash perf/run-perf.sh baseline carga                            # Linux / macOS / Git Bash
 ```
 
+### Trabajo en equipo
+
+```bash
+git clone https://github.com/federicovaldez14/Orderflow_Analytics.git
+cd Orderflow_Analytics
+git checkout corte-2          # rama de trabajo del Corte 2
+git checkout -b mi-cambio     # una rama por tarea; se integra a corte-2 con pull request
+mvn verify                    # antes de subir: todo en verde
+```
+
+- La CI (`.github/workflows`) corre `mvn verify` en cada push y pull request.
+- No se versionan `target/`, los logs de `perf/results/` ni la base H2 local (`data/`).
+- Pendiente conocido: con ~200.000 pedidos la analítica bajo carga se sigue cayendo aun con caché
+  (`perf/results/CAIDA-cache3.txt`); el candado de `ServicioAnalitica` es por periodo, así que
+  pueden correr 3 cálculos a la vez.
+
 ### API REST (resumen)
 
 | Método y ruta | Para qué |
@@ -101,13 +117,13 @@ La regla "el dominio no depende de la infraestructura" la verifica
 |---|---|---|---|---|---|
 | **R1. Inventario con trazabilidad de ingredientes** *(funcionalidad nueva exigida por el reto)* | Integridad de datos, trazabilidad (auditabilidad), confiabilidad bajo concurrencia | Componente de inventario detrás del puerto `InventarioRepositorio`; descuento atómico por pedido con `UPDATE ... WHERE stock >= ?`, orden fijo de bloqueo y `CHECK stock >= 0` ([ADR-003](docs/adr/ADR-003-consistencia-inventario.md)); un `MovimientoInventario` por cada cambio; `PoliticaDevolucion` (devolución vs merma) en el dominio | `dominio/inventario/`, `aplicacion/casodeuso/ServicioInventario.java`, `infraestructura/persistencia/InventarioRepositorioJdbc.java`, pestaña *Inventario* | Unitarias: `IngredienteTest`, `RecetaYConsumoTest`, `ServicioInventarioTest`, `GestorPedidosTest` · Integración: `InventarioRepositorioJdbcIT` (**40 hilos, 1 huevo c/u, stock 10**) · Sistema: `ApiInventarioIT` · Carga: `flujo_pedidos_k6.js` (teardown verifica stock ≥ 0) | La prueba de concurrencia exige exactamente 10 ventas, 30 rechazos, stock 0 y 10 movimientos. Sin stock: 409 con faltantes y el pedido no se crea. Carga: ver [pruebas.md §6](docs/pruebas.md#6-resultados) |
 | **R2. Dividir la cuenta al gusto de las personas** *(funcionalidad nueva exigida por el reto)* | Modificabilidad (nuevas formas de dividir), exactitud (correctitud), usabilidad | Patrón Strategy (`EstrategiaDivision`: igualitaria, por consumo con platos compartidos, por porcentaje) + `DivisorCuenta` con propina proporcional; `Repartidor` por resto mayor y dinero en `long` para cuadrar al peso; invariante verificada en `DivisionCuenta` | `dominio/cuenta/`, `aplicacion/casodeuso/ServicioCuenta.java`, `infraestructura/rest/DivisionCuentaController.java`, `infraestructura/ui/DialogoDividirCuenta.java` | Unitarias: `RepartidorTest`, `DivisionCuentaTest`, `ServicioCuentaTest` · Propiedades (jqwik): `RepartidorPropiedadesTest` (2 × 500 casos) · Sistema: `ApiDivisionCuentaIT` · Carga: check "cuenta cuadra al peso" | $100.000 / 3 = 33.334 + 33.333 + 33.333; para todo total y 1..20 personas la suma es exacta; ejemplo por consumo: Ana $73.000 / Luis $41.000 |
-| **R3. Analítica más completa y con gráficas** *(nuevos reportes y KPI exigidos por el reto)* | Usabilidad (visualización), modificabilidad (nuevos reportes), rendimiento de consultas | Las estrategias de reporte devuelven datos (`Reporte`) en vez de texto; 4 reportes nuevos + `Indicadores` + `Periodo`; el mismo caso de uso alimenta dos adaptadores: gráficas Java2D en Swing y JSON en `/api/analitica` | `dominio/reportes/`, `aplicacion/casodeuso/ServicioAnalitica.java`, `infraestructura/ui/PanelAnalitica.java`, `GraficoBarras.java`, `infraestructura/rest/AnaliticaController.java` | Unitarias: `ReportesTest`, `ServicioAnaliticaTest` · Sistema: `ApiAnaliticaIT` · Carga: `analitica_k6.js` antes/después de cargar pedidos (SLO p95 ≤ 500 ms) | Escenario fijo: ventas $125.000, ticket $62.500, 20 min, cancelación 1/3. Captura: [docs/img/analitica.png](docs/img/analitica.png). Carga: ver [pruebas.md §6](docs/pruebas.md#6-resultados) |
+| **R3. Analítica más completa y con gráficas** *(nuevos reportes y KPI exigidos por el reto)* | Usabilidad (visualización), modificabilidad (nuevos reportes), rendimiento de consultas | Las estrategias de reporte devuelven datos (`Reporte`) en vez de texto; 4 reportes nuevos + `Indicadores` + `Periodo`; el mismo caso de uso alimenta dos adaptadores: gráficas Java2D en Swing y JSON en `/api/analitica`. Tras el cuello de botella encontrado en carga: filtro por fecha en SQL y caché de 3 s con un solo cálculo a la vez | `dominio/reportes/`, `aplicacion/casodeuso/ServicioAnalitica.java`, `infraestructura/ui/PanelAnalitica.java`, `GraficoBarras.java`, `infraestructura/rest/AnaliticaController.java` | Unitarias: `ReportesTest`, `ServicioAnaliticaTest` (incl. 20 usuarios simultáneos → 1 cálculo) · Sistema: `ApiAnaliticaIT` · Carga: `analitica_k6.js` antes/después de cargar pedidos, sin y con caché (SLO p95 ≤ 500 ms) | Escenario fijo: ventas $125.000, ticket $62.500, 20 min, cancelación 1/3. Carga sin caché: **el servicio se cayó** con 30 usuarios y decenas de miles de pedidos (hallazgo, [perf/README.md §7](perf/README.md#7-hallazgo-de-la-primera-ejecución)); con caché: ver [pruebas.md §6](docs/pruebas.md#6-resultados) |
 | **R0. Límites del Corte 1: sin persistencia y un solo usuario** | Disponibilidad de los datos, rendimiento con varios meseros, mantenibilidad (una regla, varios canales) | Arquitectura hexagonal: puertos de salida con adaptadores JDBC/H2 + HikariCP ([ADR-002](docs/adr/ADR-002-persistencia-jdbc-h2-pool.md)); API REST y POS Swing como dos adaptadores de entrada sobre los mismos casos de uso; candados por mesa/pedido en `GestorPedidos` | `aplicacion/puerto/salida/`, `infraestructura/persistencia/`, `infraestructura/rest/`, `infraestructura/ui/` | Arquitectura: `ReglasDeDependenciaTest` · Integración: `PedidoRepositorioJdbcIT` · Sistema: `ApiPedidosIT` · Carga: `flujo_pedidos_k6.js` baseline + carga (SLO p95 ≤ 500 ms, errores < 1 %) | Mesa ocupada → 409; flujo completo por HTTP → *Entregado*. Carga: ver [pruebas.md §6](docs/pruebas.md#6-resultados) |
 
 **Lo que no se resolvió por completo** (detalle en [arquitectura.md §7](docs/arquitectura.md#7-límites-conocidos-y-trabajo-para-el-corte-3)):
 pedido e inventario se coordinan con una compensación y no con una transacción única; los candados
 por mesa solo protegen dentro de una instancia; la analítica recalcula sobre todo el historial en
-cada consulta (cuello de botella esperado); H2 en memoria por defecto.
+cada recálculo (mitigado con caché, la solución de fondo es CQRS); H2 en memoria por defecto.
 
 ---
 

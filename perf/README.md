@@ -36,15 +36,25 @@ dentro de cada script, así que k6 marca solo si se cumplen o no.
 Requisitos: Java 17+, Maven, [k6](https://grafana.com/docs/k6/latest/set-up/install-k6/)
 (Windows: `winget install k6 --source winget`).
 
-**Todo automático** (compila, levanta el servicio sin ventana, corre los escenarios, guarda métricas de Actuator y apaga):
+**Todo automático** (compila, levanta el servicio sin ventana con `-Xmx1g`, corre los escenarios,
+verifica entre pasos que el servicio siga vivo, guarda métricas de Actuator y apaga):
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File perf\run-perf.ps1                         # baseline + carga
+# "Antes": analítica sin caché (reproduce el cuello de botella)
+powershell -ExecutionPolicy Bypass -File perf\run-perf.ps1 -CacheAnalitica 0
+# "Después": con la mitigación (caché de 3 s, un solo cálculo a la vez)
+powershell -ExecutionPolicy Bypass -File perf\run-perf.ps1 -CacheAnalitica 3
+# Más tipos de prueba
 powershell -ExecutionPolicy Bypass -File perf\run-perf.ps1 -Escenarios baseline,carga,estres,pico
 ```
 ```bash
-bash perf/run-perf.sh baseline carga
+CACHE=0 bash perf/run-perf.sh baseline carga
+CACHE=3 bash perf/run-perf.sh baseline carga
 ```
+
+Si el servicio se cae, el script lo detecta, muestra las últimas líneas del log y deja
+`perf/results/CAIDA-cacheN.txt`. Con `-XX:+ExitOnOutOfMemoryError` una falta de memoria queda
+explícita en `app-err.log` en vez de dejar el proceso en un estado indefinido.
 
 **Manual:**
 
@@ -62,7 +72,7 @@ una comanda activa por mesa).
 
 ## 5. Resultados
 
-Cada ejecución deja en `results/`:
+Cada ejecución deja en `results/` (con sufijo `-cache0` o `-cache3` para comparar antes y después):
 
 - `<script>-<escenario>.md` – resumen listo para pegar: throughput, tasa de error, p50/p90/p95/máx,
   p95 por endpoint contra su SLO y el estado de cada umbral.
@@ -81,3 +91,25 @@ El análisis de los resultados está en [`../docs/pruebas.md`](../docs/pruebas.m
    stock). Se espera que `crear_pedido` sea el endpoint más lento del flujo.
 3. **Pool de conexiones:** Tomcat atiende hasta 200 hilos y el pool Hikari tiene 20 conexiones;
    en estrés debería aparecer espera por conexión (`hikaricp.connections.pending`).
+
+## 7. Hallazgo de la primera ejecución
+
+En la primera corrida completa (28/09/2026, portátil Windows, sin límite de memoria explícito y
+**sin caché** en la analítica), los pasos de analítica *antes* y de flujo de pedidos terminaron,
+pero en el paso 5 —30 usuarios consultando la analítica después de que la prueba de flujo había
+creado decenas de miles de pedidos— **el servicio dejó de responder a los ~174 s** (k6 reportó
+`connection refused` y superó los umbrales `checks` y `http_req_failed`).
+
+Coincide con la **hipótesis 1** (causa probable; se confirma si `app-err.log` muestra `OutOfMemoryError`): cada consulta del panel traía a memoria todo el historial de
+pedidos con sus líneas, y 30 consultas simultáneas multiplicaban esa memoria.
+
+**Mitigación aplicada** (en `ServicioAnalitica` y el adaptador JDBC, sin tocar el dominio):
+
+1. HOY y SEMANA se filtran en SQL (`PedidoRepositorio.listarCreadosDesde`, con índice por fecha).
+2. Caché por periodo con vigencia configurable (`orderflow.analitica.cache-segundos`, 3 s por
+   defecto) y **un solo cálculo a la vez**: los demás usuarios esperan y reciben el mismo
+   resultado. Lo prueban `ServicioAnaliticaTest.shouldComputeOnlyOnceUnderConcurrentRequests` (20
+   hilos, 1 lectura) y las pruebas de vigencia.
+
+**Trade-off:** el panel puede mostrar datos con hasta 3 s de antigüedad; la UI ya refresca cada 2 s,
+así que en la práctica no se nota. La solución de fondo sigue siendo CQRS (totales precalculados).
