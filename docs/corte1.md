@@ -166,10 +166,10 @@ src/main/java/com/restaurant/
 ```
 
 **Dónde se aplica cada patrón/principio (enlaces directos):**
-- Factory Method → [`PlatoFactory.java`](src/main/java/com/restaurant/fabrica/PlatoFactory.java)
-- State → [`EstadoPedido.java`](src/main/java/com/restaurant/estado/EstadoPedido.java) y paquete `estado/`
-- Observer → [`Notificador.java`](src/main/java/com/restaurant/observador/Notificador.java) y paquete `observador/`
-- Strategy → [`EstrategiaReporte.java`](src/main/java/com/restaurant/reportes/EstrategiaReporte.java) y paquete `reportes/`
+- Factory Method → [`PlatoFactory.java`](../src/main/java/com/restaurant/dominio/fabrica/PlatoFactory.java)
+- State → [`EstadoPedido.java`](../src/main/java/com/restaurant/dominio/estado/EstadoPedido.java) y paquete `estado/`
+- Observer → [`Notificador.java`](../src/main/java/com/restaurant/dominio/observador/Notificador.java) y paquete `observador/`
+- Strategy → [`EstrategiaReporte.java`](../src/main/java/com/restaurant/dominio/reportes/EstrategiaReporte.java) y paquete `reportes/`
 - SOLID (SRP/DIP/ISP) → ver comentarios Javadoc en cada clase citada en 4.1
 
 **Instrucciones de ejecución:** ver el [README](../README.md) del Corte 2.
