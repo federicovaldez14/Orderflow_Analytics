@@ -9,6 +9,7 @@ import com.restaurant.dominio.modelo.Plato;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Objetos de transferencia del adaptador REST. Se mantienen separados del
@@ -73,5 +74,33 @@ public final class Dtos {
     }
 
     public record ConteoDto(long stockContado, String nota) {
+    }
+
+    // ---------- División de cuenta (Reto 2) ----------
+
+    public record AsignacionDto(int linea, Map<String, Integer> personas) {
+    }
+
+    /**
+     * metodo: IGUALITARIA (personas o numeroPersonas), POR_CONSUMO (asignaciones)
+     * o POR_PORCENTAJE (porcentajes). propinaPorcentaje es opcional (0 por defecto).
+     */
+    public record SolicitudDivisionDto(String metodo, List<String> personas, Integer numeroPersonas,
+                                       List<AsignacionDto> asignaciones, Map<String, Integer> porcentajes,
+                                       Integer propinaPorcentaje) {
+    }
+
+    public record ParteDto(String persona, long consumo, long propina, long total, List<String> detalle) {
+    }
+
+    public record DivisionDto(int pedidoId, String metodo, long subtotal, int propinaPorcentaje, long propina,
+                              long total, List<ParteDto> partes) {
+        static DivisionDto de(com.restaurant.dominio.cuenta.DivisionCuenta d) {
+            List<ParteDto> partes = new ArrayList<>();
+            d.partes().forEach(p -> partes.add(new ParteDto(p.persona(), p.consumo(), p.propina(), p.total(),
+                    p.detalle())));
+            return new DivisionDto(d.pedidoId(), d.metodo(), d.subtotal(), d.propinaPorcentaje(), d.propina(),
+                    d.total(), partes);
+        }
     }
 }

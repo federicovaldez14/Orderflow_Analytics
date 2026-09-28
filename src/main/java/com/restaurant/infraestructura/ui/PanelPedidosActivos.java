@@ -22,12 +22,15 @@ public class PanelPedidosActivos extends JPanel {
 
     private final GestorPedidos gestor;
     private final Runnable onCambioExterno;
+    private final PanelMapaMesas.AccionesCuenta accionesCuenta;
     private final DefaultTableModel modelo;
     private final JTable tabla;
 
-    public PanelPedidosActivos(GestorPedidos gestor, Runnable onCambioExterno) {
+    public PanelPedidosActivos(GestorPedidos gestor, Runnable onCambioExterno,
+                               PanelMapaMesas.AccionesCuenta accionesCuenta) {
         this.gestor = gestor;
         this.onCambioExterno = onCambioExterno;
+        this.accionesCuenta = accionesCuenta;
         setLayout(new BorderLayout(8, 8));
         setBorder(BorderFactory.createEmptyBorder(14, 14, 14, 14));
         setBackground(EstiloUI.FONDO);
@@ -47,10 +50,19 @@ public class PanelPedidosActivos extends JPanel {
         JButton btnEditar = new JButton("Editar ítems...");
         JButton btnAvanzar = new JButton("Avanzar estado ->");
         JButton btnCancelar = new JButton("Cancelar pedido X");
+        JButton btnDividir = new JButton("Dividir cuenta...");
+        btnDividir.setVisible(accionesCuenta != null);
+        btnDividir.addActionListener(e -> {
+            Integer id = exigirSeleccion();
+            if (id != null) {
+                accionesCuenta.dividirCuenta(this, id);
+            }
+        });
         botones.add(btnRefrescar);
         botones.add(btnEditar);
         botones.add(btnAvanzar);
         botones.add(btnCancelar);
+        botones.add(btnDividir);
         add(botones, BorderLayout.SOUTH);
 
         btnRefrescar.addActionListener(e -> refrescar());

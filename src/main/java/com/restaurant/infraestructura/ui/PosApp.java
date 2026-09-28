@@ -1,6 +1,7 @@
 package com.restaurant.infraestructura.ui;
 
 import com.restaurant.aplicacion.casodeuso.GestorPedidos;
+import com.restaurant.aplicacion.casodeuso.ServicioCuenta;
 import com.restaurant.aplicacion.casodeuso.ServicioInventario;
 import com.restaurant.infraestructura.notificacion.AlertasInventarioEnMemoria;
 import com.restaurant.infraestructura.notificacion.NotificadorEnMemoria;
@@ -20,7 +21,8 @@ public class PosApp extends JFrame {
 
     private final JTabbedPane tabs = new JTabbedPane();
 
-    public PosApp(GestorPedidos gestor, ServicioInventario inventario, AlertasInventarioEnMemoria alertas,
+    public PosApp(GestorPedidos gestor, ServicioInventario inventario, ServicioCuenta cuenta,
+                  AlertasInventarioEnMemoria alertas,
                   NotificadorEnMemoria cocina, NotificadorEnMemoria mesero) {
         super("Orderflow Analytics — POS Restaurante — Corte 2");
 
@@ -33,8 +35,11 @@ public class PosApp extends JFrame {
             if (mapaRef[0] != null) mapaRef[0].refrescar();
         };
 
-        PanelMapaMesas panelMapa = new PanelMapaMesas(gestor, refrescarLista, null);
-        PanelPedidosActivos panelPedidos = new PanelPedidosActivos(gestor, refrescarMapa);
+        PanelMapaMesas.AccionesCuenta dividir = (padre, pedidoId) -> EstiloUI.intentar(padre, () ->
+                new DialogoDividirCuenta(SwingUtilities.getWindowAncestor(padre), gestor, cuenta, pedidoId)
+                        .setVisible(true));
+        PanelMapaMesas panelMapa = new PanelMapaMesas(gestor, refrescarLista, dividir);
+        PanelPedidosActivos panelPedidos = new PanelPedidosActivos(gestor, refrescarMapa, dividir);
         mapaRef[0] = panelMapa;
         listaRef[0] = panelPedidos;
 

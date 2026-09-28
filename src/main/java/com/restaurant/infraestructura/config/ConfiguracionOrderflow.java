@@ -1,6 +1,7 @@
 package com.restaurant.infraestructura.config;
 
 import com.restaurant.aplicacion.casodeuso.GestorPedidos;
+import com.restaurant.aplicacion.casodeuso.ServicioCuenta;
 import com.restaurant.aplicacion.casodeuso.ServicioInventario;
 import com.restaurant.aplicacion.puerto.salida.AlertaInventario;
 import com.restaurant.aplicacion.puerto.salida.InventarioRepositorio;
@@ -81,5 +82,10 @@ public class ConfiguracionOrderflow {
                                        ServicioInventario inventario, List<Notificador> notificadores,
                                        Clock reloj, @Value("${orderflow.mesas:10}") int numeroMesas) {
         return new GestorPedidos(pedidos, menu, inventario, notificadores, numeroMesas, reloj);
+    }
+
+    @Bean
+    public ServicioCuenta servicioCuenta(PedidoRepositorio pedidos) {
+        return new ServicioCuenta(pedidos);
     }
 }
