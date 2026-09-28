@@ -4,14 +4,10 @@ import com.restaurant.dominio.modelo.Pedido;
 
 import java.util.List;
 
-/**
- * DIP: ReporteService depende de la abstracción EstrategiaReporte, no de
- * clases concretas. Para agregar un reporte nuevo no se toca esta clase,
- * solo se le pasa una estrategia nueva desde el código cliente (Main).
- */
+/** Contexto del Strategy: depende de la abstracción EstrategiaReporte (DIP). */
 public class ReporteService {
 
-    public String generarReporte(EstrategiaReporte estrategia, List<Pedido> pedidos) {
+    public Reporte generarReporte(EstrategiaReporte estrategia, List<Pedido> pedidos) {
         return estrategia.generar(pedidos);
     }
 }

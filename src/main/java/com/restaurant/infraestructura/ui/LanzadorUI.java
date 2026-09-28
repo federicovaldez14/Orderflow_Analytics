@@ -1,6 +1,7 @@
 package com.restaurant.infraestructura.ui;
 
 import com.restaurant.aplicacion.casodeuso.GestorPedidos;
+import com.restaurant.aplicacion.casodeuso.ServicioAnalitica;
 import com.restaurant.aplicacion.casodeuso.ServicioCuenta;
 import com.restaurant.aplicacion.casodeuso.ServicioInventario;
 import com.restaurant.infraestructura.notificacion.AlertasInventarioEnMemoria;
@@ -34,16 +35,19 @@ public class LanzadorUI implements ApplicationRunner {
     private final GestorPedidos gestor;
     private final ServicioInventario inventario;
     private final ServicioCuenta cuenta;
+    private final ServicioAnalitica analitica;
     private final AlertasInventarioEnMemoria alertas;
     private final NotificadorCocina cocina;
     private final NotificadorMesero mesero;
 
     public LanzadorUI(GestorPedidos gestor, ServicioInventario inventario, ServicioCuenta cuenta,
+                      ServicioAnalitica analitica,
                       AlertasInventarioEnMemoria alertas,
                       NotificadorCocina cocina, NotificadorMesero mesero) {
         this.gestor = gestor;
         this.inventario = inventario;
         this.cuenta = cuenta;
+        this.analitica = analitica;
         this.alertas = alertas;
         this.cocina = cocina;
         this.mesero = mesero;
@@ -57,7 +61,7 @@ public class LanzadorUI implements ApplicationRunner {
         }
         SwingUtilities.invokeLater(() -> {
             EstiloUI.aplicarTemaGlobal();
-            new PosApp(gestor, inventario, cuenta, alertas, cocina, mesero).setVisible(true);
+            new PosApp(gestor, inventario, cuenta, analitica, alertas, cocina, mesero).setVisible(true);
         });
     }
 }

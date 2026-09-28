@@ -1,6 +1,7 @@
 package com.restaurant.infraestructura.ui;
 
 import com.restaurant.aplicacion.casodeuso.GestorPedidos;
+import com.restaurant.aplicacion.casodeuso.ServicioAnalitica;
 import com.restaurant.aplicacion.casodeuso.ServicioCuenta;
 import com.restaurant.aplicacion.casodeuso.ServicioInventario;
 import com.restaurant.infraestructura.notificacion.AlertasInventarioEnMemoria;
@@ -22,6 +23,7 @@ public class PosApp extends JFrame {
     private final JTabbedPane tabs = new JTabbedPane();
 
     public PosApp(GestorPedidos gestor, ServicioInventario inventario, ServicioCuenta cuenta,
+                  ServicioAnalitica analitica,
                   AlertasInventarioEnMemoria alertas,
                   NotificadorEnMemoria cocina, NotificadorEnMemoria mesero) {
         super("Orderflow Analytics — POS Restaurante — Corte 2");
@@ -48,7 +50,7 @@ public class PosApp extends JFrame {
         tabs.addTab("Lista de pedidos", panelPedidos);
         tabs.addTab("Inventario", new PanelInventario(inventario, alertas));
         tabs.addTab("Notificaciones", new PanelNotificaciones(cocina, mesero));
-        tabs.addTab("Analítica", new PanelAnalitica(gestor));
+        tabs.addTab("Analítica", new PanelAnalitica(analitica));
         tabs.addChangeListener(e -> refrescarVisible());
 
         // Refresco periódico: muestra cambios hechos por otros adaptadores (REST).
@@ -67,6 +69,8 @@ public class PosApp extends JFrame {
             ((PanelMapaMesas) visible).refrescar();
         } else if (visible instanceof PanelPedidosActivos) {
             ((PanelPedidosActivos) visible).refrescar();
+        } else if (visible instanceof PanelAnalitica) {
+            ((PanelAnalitica) visible).refrescar();
         } else if (visible instanceof PanelInventario) {
             ((PanelInventario) visible).refrescar();
         }

@@ -5,12 +5,13 @@ import com.restaurant.dominio.modelo.Pedido;
 import java.util.List;
 
 /**
- * PATRÓN DE COMPORTAMIENTO (bonus, además de State): Strategy.
+ * PATRÓN STRATEGY (Corte 1). Cada reporte es una clase intercambiable;
+ * agregar uno nuevo (Reto 3 agregó cuatro) no modifica ReporteService ni los
+ * existentes (OCP).
  *
- * Permite añadir un nuevo tipo de reporte (por ejemplo "ventas por hora")
- * sin modificar ReporteService ni las estrategias existentes: solo se crea
- * una clase nueva que implemente esta interfaz (Open/Closed Principle).
+ * Cambio de Corte 2: devuelve un Reporte (datos) en vez de un String, para
+ * poder graficarlo.
  */
 public interface EstrategiaReporte {
-    String generar(List<Pedido> pedidos);
+    Reporte generar(List<Pedido> pedidos);
 }

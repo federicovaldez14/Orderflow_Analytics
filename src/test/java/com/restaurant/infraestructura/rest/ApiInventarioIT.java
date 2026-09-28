@@ -29,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Stock inicial de HUEVO: 60.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        properties = {"orderflow.ui.enabled=false",
+        properties = {"orderflow.ui.enabled=false", "orderflow.demo.historico=false",
                 "spring.datasource.url=jdbc:h2:mem:api_inventario_it;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=10000"})
 class ApiInventarioIT {
 

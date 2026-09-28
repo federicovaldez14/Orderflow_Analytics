@@ -3,31 +3,43 @@ package com.restaurant.dominio.reportes;
 import com.restaurant.dominio.modelo.Pedido;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Calcula el tiempo promedio de atención (creación -> entrega) usando los
- * timestamps que Pedido registra en cada cambio de estado. Es la base para
- * detectar cuellos de botella en el servicio.
+ * Tiempo promedio (minutos) de cada etapa del servicio y del total. Solo
+ * cuenta pedidos que ya pasaron por esa etapa. Es la base para ver DÓNDE está
+ * la demora: en cocina (En preparación -> Listo) o en el salón (Listo -> Entregado).
  */
 public class ReporteTiempoPromedio implements EstrategiaReporte {
 
     @Override
-    public String generar(List<Pedido> pedidos) {
-        List<Duration> tiempos = pedidos.stream()
-                .map(Pedido::tiempoDeAtencion)
-                .filter(d -> d != null)
-                .collect(java.util.stream.Collectors.toList());
+    public Reporte generar(List<Pedido> pedidos) {
+        List<Reporte.Dato> datos = new ArrayList<>();
+        agregar(datos, "Espera a cocina", pedidos, Pedido::getHoraCreacion, Pedido::getHoraEnPreparacion);
+        agregar(datos, "Preparación", pedidos, Pedido::getHoraEnPreparacion, Pedido::getHoraListo);
+        agregar(datos, "Entrega a la mesa", pedidos, Pedido::getHoraListo, Pedido::getHoraEntregado);
+        agregar(datos, "Total (creado → entregado)", pedidos, Pedido::getHoraCreacion, Pedido::getHoraEntregado);
+        return new Reporte("tiempo-promedio", "Tiempo promedio de atención por etapa", "min", datos);
+    }
 
-        if (tiempos.isEmpty()) {
-            return "== Tiempo promedio de atención ==\nAún no hay pedidos entregados.\n";
+    private static void agregar(List<Reporte.Dato> datos, String etapa, List<Pedido> pedidos,
+                                java.util.function.Function<Pedido, LocalDateTime> desde,
+                                java.util.function.Function<Pedido, LocalDateTime> hasta) {
+        long sumaSegundos = 0;
+        int n = 0;
+        for (Pedido p : pedidos) {
+            LocalDateTime a = desde.apply(p);
+            LocalDateTime b = hasta.apply(p);
+            if (a != null && b != null) {
+                sumaSegundos += Duration.between(a, b).getSeconds();
+                n++;
+            }
         }
-
-        long totalSegundos = tiempos.stream().mapToLong(Duration::getSeconds).sum();
-        double promedioSegundos = totalSegundos / (double) tiempos.size();
-
-        return String.format(
-                "== Tiempo promedio de atención ==\n%d pedidos entregados, promedio: %.1f segundos\n",
-                tiempos.size(), promedioSegundos);
+        if (n > 0) {
+            double minutos = Math.round(sumaSegundos / (double) n / 6.0) / 10.0;   // 1 decimal
+            datos.add(new Reporte.Dato(etapa, minutos));
+        }
     }
 }
