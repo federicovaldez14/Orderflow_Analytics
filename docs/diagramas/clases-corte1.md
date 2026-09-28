@@ -1,4 +1,6 @@
-# Diagrama de clases — Sistema de Gestión de Pedidos de Restaurante
+# Diagrama de clases — Corte 1 (histórico)
+
+> Se conserva como referencia de la arquitectura inicial. El diagrama vigente es [clases-dominio.md](clases-dominio.md).
 
 ```mermaid
 classDiagram

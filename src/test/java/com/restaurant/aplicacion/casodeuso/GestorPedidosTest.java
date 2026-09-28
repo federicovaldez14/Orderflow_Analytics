@@ -277,6 +277,35 @@ class GestorPedidosTest {
         verify(inventario).liberar(eq(p), anyList(), eq("Creado"));
     }
 
+    // ---------- consultas ----------
+
+    @Test
+    @DisplayName("Las consultas delegan en los puertos: listar, carta, mesa activa y número de mesas")
+    void shouldDelegateQueries() {
+        Pedido p = pedidoCon(5, BANDEJA);
+        when(pedidos.listarTodos()).thenReturn(List.of(p));
+        when(pedidos.buscarActivoPorMesa(2)).thenReturn(Optional.of(p));
+        when(menu.listar()).thenReturn(List.of(BANDEJA, LIMONADA));
+
+        assertEquals(1, gestor.listar().size());
+        assertEquals(2, gestor.menu().size());
+        assertEquals(5, gestor.pedidoActivoDeMesa(2).orElseThrow().getId());
+        assertEquals(MESAS, gestor.getNumeroMesas());
+    }
+
+    @Test
+    @DisplayName("Sin módulo de inventario (SIN_INVENTARIO) el flujo de pedidos funciona igual")
+    void shouldWorkWithoutInventory() {
+        GestorPedidos sinInventario = new GestorPedidos(pedidos, menu, ControlInventario.SIN_INVENTARIO,
+                List.of(), MESAS, reloj);
+
+        Pedido p = sinInventario.crearPedido(3, List.of(new LineaSolicitada("Bandeja Paisa", 1)));
+        when(pedidos.buscarPorId(p.getId())).thenReturn(Optional.of(p));
+        sinInventario.cancelar(p.getId());
+
+        assertEquals("Cancelado", p.getEstadoNombre());
+    }
+
     private Pedido pedidoCon(int id, com.restaurant.dominio.modelo.Plato plato) {
         Pedido p = new Pedido(id, 2, reloj);
         p.agregarItem(new ItemPedido(plato, 1));

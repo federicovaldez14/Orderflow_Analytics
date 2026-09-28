@@ -22,6 +22,36 @@
        se importan las versiones con spring-boot-dependencies. -->
   <dependencyManagement>
     <dependencies>
+      <!-- JUnit 5.10 (el mismo del taller de pruebas unitarias). Se importa ANTES
+           que spring-boot-dependencies para que gane sobre su JUnit 5.8: jqwik 1.8
+           necesita la plataforma JUnit 1.10. -->
+      <dependency>
+        <groupId>org.junit</groupId>
+        <artifactId>junit-bom</artifactId>
+        <version>5.10.2</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <!-- Mockito 5.12 (misma versión del taller de carga) con su Byte Buddy:
+           Spring Boot 2.7 trae Mockito 4.5 / Byte Buddy 1.12, que no soportan
+           ejecutar sobre Java 21. -->
+      <dependency>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-bom</artifactId>
+        <version>5.12.0</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>net.bytebuddy</groupId>
+        <artifactId>byte-buddy</artifactId>
+        <version>1.14.15</version>
+      </dependency>
+      <dependency>
+        <groupId>net.bytebuddy</groupId>
+        <artifactId>byte-buddy-agent</artifactId>
+        <version>1.14.15</version>
+      </dependency>
       <dependency>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-dependencies</artifactId>

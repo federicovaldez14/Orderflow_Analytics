@@ -1,208 +1,121 @@
-# Sistema de Gestión de Pedidos para Restaurante — Corte Uno
+# Orderflow Analytics — Sistema de pedidos para restaurante (Corte 2)
 
-## 1. Presentación del Problema
+Sistema de gestión de pedidos para un restaurante: mapa de mesas, flujo de comandas con cocina y
+mesero, **inventario de ingredientes con trazabilidad**, **división de la cuenta** y **analítica con
+gráficas**. Corte 2 de Diseño y Arquitectura de Software: el sistema del Corte 1 se reorganizó en
+**arquitectura hexagonal** y se respaldó con pruebas unitarias, de integración y de carga.
 
-En un restaurante físico que opera de forma manual (papel y voz), las
-comandas viajan de mesero a cocina sin ningún registro central. Esto
-genera tres problemas recurrentes:
+| Documento | Contenido |
+|---|---|
+| [docs/arquitectura.md](docs/arquitectura.md) | Descripción, retos, comparación de estilos, diagramas C4 (contexto, contenedores, componentes), límites |
+| [docs/adr/](docs/adr/) | [ADR-001 Hexagonal](docs/adr/ADR-001-arquitectura-hexagonal.md) · [ADR-002 Persistencia](docs/adr/ADR-002-persistencia-jdbc-h2-pool.md) · [ADR-003 Consistencia del inventario](docs/adr/ADR-003-consistencia-inventario.md) |
+| [docs/pruebas.md](docs/pruebas.md) | Estrategia de pruebas, clases de equivalencia, resultados y análisis |
+| [perf/README.md](perf/README.md) | Plan de carga: SLO, escenarios, scripts k6 |
+| [docs/diagramas/](docs/diagramas/) | Diagrama de clases del núcleo y secuencia "tomar pedido con inventario" |
+| [docs/corte1.md](docs/corte1.md) | Documento original del Corte 1 (SOLID y patrones) |
 
-- **Errores de comunicación**: comandas olvidadas, duplicadas o mal
-  anotadas entre el mesero y la cocina.
-- **Falta de visibilidad del servicio**: nadie sabe cuánto tarda realmente
-  un pedido en pasar de "tomado" a "entregado" hasta que el cliente se
-  queja.
-- **Decisiones "a ojo"**: el dueño ajusta el menú y el personal por
-  intuición, sin datos de qué platos se piden más o menos.
+---
 
-**¿A quién afecta?** A los meseros (que cargan la responsabilidad de
-recordar todo verbalmente), a la cocina (que recibe comandas ambiguas) y,
-en última instancia, al cliente, que percibe demoras y errores.
+## Cómo ejecutar
 
-**¿Por qué resolverlo con software y no con otro medio?** Un tablero de
-papel o una pizarra no puede calcular automáticamente tiempos de
-atención ni acumular estadísticas de consumo a lo largo de días o
-semanas; un sistema de software sí, y además puede notificar en tiempo
-real a cada área sin depender de que alguien grite la orden en la
-cocina.
+**Requisitos:** Java 17 o superior y Maven 3.8+. Para carga: [k6](https://grafana.com/docs/k6/latest/set-up/install-k6/)
+(Windows: `winget install k6 --source winget`).
 
-**Alcance de este módulo (Corte 1).** Este entregable cubre el módulo de
-**gestión de pedidos**: creación de una comanda, su flujo de estados
-(`Creado → En preparación → Listo → Entregado`), el registro automático
-de tiempos, y reportes básicos de consumo (platos más/menos pedidos y
-tiempo promedio de atención). **Queda explícitamente fuera de alcance**
-en este corte: autenticación de usuarios, persistencia en base de datos
-(los datos viven en memoria durante la ejecución de la demo), interfaz
-gráfica o web, facturación/pagos, y gestión de inventario. El sistema
-completo (con esos módulos) es una evolución futura; este corte
-demuestra el núcleo de diseño de un módulo funcional.
+```bash
+# 1. Aplicación: abre el POS de escritorio y levanta la API en http://localhost:8080
+mvn spring-boot:run
 
-## 2. Creatividad en la Presentación
+# o como jar
+mvn -DskipTests package
+java -jar target/orderflow-analytics-2.0.0.jar
 
-
-## 3. Fundamentos de Ingeniería de Software
-
-| Atributo de calidad | ¿Cómo se sostiene en el diseño? (evidencia concreta) | ¿Qué se sacrificó a cambio? |
-|---|---|---|
-| **Mantenibilidad** | El flujo de estados usa el patrón *State* (`EstadoPedido` y sus 4 implementaciones). Agregar un estado nuevo, por ejemplo "Cancelado", no exige tocar `Pedido` ni las clases de estado existentes, solo crear una clase nueva. | Más clases pequeñas que rastrear (4 estados en vez de 1 campo `String`); alguien nuevo en el proyecto necesita entender el patrón antes de seguir el flujo. |
-| **Extensibilidad / Escalabilidad** | `PlatoFactory` centraliza la creación de platos por categoría. Agregar una categoría nueva (p. ej. `ENSALADA`) es un `case` más en la fábrica, sin tocar `Pedido`, `GestorPedidos` ni `Main`. | La fábrica crece con cada categoría nueva; si el número de tipos fuera muy grande convendría migrar a un registro configurable en vez de un `switch`. |
-| **Bajo acoplamiento** | `Pedido` notifica cambios de estado a través de la interfaz `Notificador` (patrón *Observer*), sin conocer si el receptor es la pantalla de cocina, la app del mesero, o un canal futuro (p. ej. una notificación push al celular del cliente). | Indirección adicional: para saber qué pasa realmente al notificar hay que revisar cada implementación de `Notificador` por separado. |
-| **Reusabilidad** | Las estrategias de reporte (`EstrategiaReporte`) son intercambiables y reutilizan lógica común (`ReportePlatosMenosPedidos` reutiliza el conteo de `ReportePlatosMasPedidos`). | Si las estrategias necesitaran compartir más lógica, ese acoplamiento entre reportes concretos podría crecer y ensuciar el "solo lo necesario" de Strategy. |
-
-## 4. Diseño de Software
-
-### 4.1 Principios SOLID aplicados
-
-**Open/Closed Principle — con comparación antes/después**
-
-```text
-❌ ANTES (violación): Pedido guarda el estado como un String y el método
-   avanzarEstado() tiene un if/else (o switch) que decide manualmente
-   cuál es "el siguiente estado":
-
-   public void avanzarEstado() {
-       if (estado.equals("Creado")) estado = "En preparación";
-       else if (estado.equals("En preparación")) estado = "Listo";
-       else if (estado.equals("Listo")) estado = "Entregado";
-   }
-
-   Problema: cada vez que el restaurante necesita un estado nuevo (p. ej.
-   "Cancelado" o "En espera de insumo"), hay que abrir y modificar este
-   método, con el riesgo de romper transiciones que ya funcionaban.
-
-✅ DESPUÉS (aplicando el principio): se extrae la interfaz EstadoPedido y
-   cada estado concreto (EstadoCreado, EstadoEnPreparacion, EstadoListo,
-   EstadoEntregado) sabe cuál es su propio siguiente estado:
-
-   public class EstadoCreado implements EstadoPedido {
-       public void avanzar(Pedido pedido) {
-           pedido.cambiarEstado(new EstadoEnPreparacion());
-       }
-   }
-
-   Por qué resuelve el problema: Pedido queda cerrado a modificación
-   (nunca más se edita para soportar un estado nuevo) pero abierto a
-   extensión (se agrega una clase EstadoCancelado sin tocar nada más).
+# solo la API, sin ventana (servidores, pruebas de carga)
+java -jar target/orderflow-analytics-2.0.0.jar --orderflow.ui.enabled=false
 ```
 
-**Single Responsibility Principle** — cada clase tiene un único motivo de
-cambio: `Pedido` solo administra sus propios datos y delega en su estado
-actual (`com.restaurant.modelo.Pedido`); `GestorPedidos` solo orquesta la
-creación/avance de pedidos (`com.restaurant.servicio.GestorPedidos`);
-`ReporteService` solo genera reportes (`com.restaurant.reportes.ReporteService`);
-`PlatoFactory` solo sabe construir platos (`com.restaurant.fabrica.PlatoFactory`).
-Se eligió esta separación y no una única clase "Restaurante" porque cada
-una de estas responsabilidades cambia por razones distintas: las reglas
-de reporte cambian por decisiones de negocio, las de creación de platos
-por cambios de menú, y el flujo de pedidos por procesos operativos.
+Al arrancar se cargan la carta (10 platos), 20 ingredientes con sus recetas y ~7 días de pedidos
+históricos para la analítica (`orderflow.demo.historico=true`, se puede apagar).
 
-**Interface Segregation Principle** — `Notificador` (un solo método,
-`notificar`) y `EstrategiaReporte` (un solo método, `generar`) son
-interfaces pequeñas y específicas. No existe una interfaz "gorda" tipo
-`IServicioRestaurante` con notificar/reportar/facturar juntos, porque eso
-obligaría a `NotificadorCocina` a implementar métodos de reportes que
-nunca usa.
+```bash
+# 2. Pruebas
+mvn test      # unitarias + regla de arquitectura + cobertura (target/site/jacoco/index.html)
+mvn verify    # + integración con H2 y pruebas de sistema por HTTP (*IT)
 
-**Dependency Inversion Principle** — `GestorPedidos` depende de la
-abstracción `List<Notificador>`, no de `NotificadorCocina` o
-`NotificadorMesero` en concreto (`com.restaurant.servicio.GestorPedidos`,
-constructor). `ReporteService` depende de `EstrategiaReporte`, no de una
-estrategia concreta (`com.restaurant.reportes.ReporteService`). Esto
-permite, en pruebas o en una extensión futura, inyectar un `Notificador`
-falso o una estrategia nueva sin modificar estas clases.
+# 3. Carga (compila, levanta el servicio, corre k6 y apaga)
+powershell -ExecutionPolicy Bypass -File perf\run-perf.ps1      # Windows
+bash perf/run-perf.sh baseline carga                            # Linux / macOS / Git Bash
+```
 
-### 4.2 Patrones de diseño utilizados
+### API REST (resumen)
 
-| Patrón | Categoría | Problema que resuelve aquí | Por qué no se usó [alternativa] |
-|---|---|---|---|
-| **Factory Method** (`PlatoFactory`) | Creacional | Crear objetos `Plato` de distintas categorías (entrada, fuerte, bebida, postre) sin que el código cliente conozca reglas de negocio como el tiempo de preparación por defecto de cada categoría. | Se descartó Builder porque un `Plato` no se arma por pasos opcionales encadenados; es una variante de tipo seleccionada por categoría, el caso de uso típico de Factory Method. |
-| **State** (`EstadoPedido` y sus 4 implementaciones) | Comportamiento | Modelar el flujo `Creado → En preparación → Listo → Entregado` sin un campo `String` y un `if/else` que crece cada vez que se agrega un estado (ver 4.1). | Se descartó una máquina de estados basada en `enum` con un `switch` centralizado porque reintroduce exactamente el problema de OCP que el patrón State evita: cada estado nuevo obligaría a tocar ese `switch`. |
-| **Observer** (`Notificador`, `NotificadorCocina`, `NotificadorMesero`) | Comportamiento | Avisar a cocina y al mesero cada vez que un pedido cambia de estado, sin que `Pedido` conozca los canales concretos de notificación. | Se descartó que `Pedido` llamara directamente a `System.out.println` en cocina y mesero, porque eso acoplaría el modelo de dominio a la forma de mostrar la notificación (consola, app, impresora). |
-| **Strategy** (`EstrategiaReporte` y sus 3 implementaciones) | Comportamiento | Generar distintos reportes de consumo (más pedidos, menos pedidos, tiempo promedio) de forma intercambiable, sin un método gigante con banderas `tipoReporte == 1`. | Se descartó un único método `generarReporte(int tipo)` con `switch` porque, igual que en el caso de State, cada reporte nuevo obligaría a modificar ese método en vez de solo agregar una clase. |
+| Método y ruta | Para qué |
+|---|---|
+| `GET /api/menu` · `GET /api/mesas` | Carta y estado de cada mesa |
+| `POST /api/pedidos` `{"mesa":3,"lineas":[{"plato":"Bandeja Paisa","cantidad":2}]}` | Tomar pedido (descuenta inventario) |
+| `POST /api/pedidos/{id}/avanzar` · `/cancelar` · `/items` · `DELETE /api/pedidos/{id}/items/{linea}` | Flujo y edición |
+| `POST /api/pedidos/{id}/division` `{"metodo":"POR_CONSUMO", ...}` | Dividir la cuenta (Reto 2) |
+| `GET /api/inventario` · `/alertas` · `/movimientos?ingrediente=HUEVO` · `GET /api/pedidos/{id}/inventario` | Inventario y trazabilidad (Reto 1) |
+| `POST /api/inventario/{codigo}/reposicion` · `/ajuste` | Entradas y conteo físico |
+| `GET /api/analitica?periodo=HOY\|SEMANA\|TODO` · `GET /api/analitica/reportes/{id}` | Analítica (Reto 3) |
+| `GET /actuator/health` · `/actuator/prometheus` | Salud y métricas |
 
-### 4.3 Modelado UML
+Códigos: 400 dato inválido · 404 no existe · 409 el negocio no lo permite (mesa ocupada, stock
+insuficiente con el detalle de faltantes, pedido cancelado).
 
-Diagrama de clases completo (Mermaid, se renderiza nativamente en
-GitHub): [`docs/diagrama-clases.md`](docs/diagrama-clases.md)
+---
 
-**Tabla de trazabilidad:**
+## Estilo arquitectónico
 
-| Clase en el diagrama | Archivo en el repositorio | Coincide en atributos/métodos clave |
-|---|---|---|
-| `Pedido` | `src/main/java/com/restaurant/modelo/Pedido.java` | Sí |
-| `ItemPedido` | `src/main/java/com/restaurant/modelo/ItemPedido.java` | Sí |
-| `Plato` | `src/main/java/com/restaurant/modelo/Plato.java` | Sí |
-| `TipoPlato` | `src/main/java/com/restaurant/fabrica/TipoPlato.java` | Sí |
-| `PlatoFactory` | `src/main/java/com/restaurant/fabrica/PlatoFactory.java` | Sí |
-| `EstadoPedido` | `src/main/java/com/restaurant/estado/EstadoPedido.java` | Sí |
-| `EstadoCreado` | `src/main/java/com/restaurant/estado/EstadoCreado.java` | Sí |
-| `EstadoEnPreparacion` | `src/main/java/com/restaurant/estado/EstadoEnPreparacion.java` | Sí |
-| `EstadoListo` | `src/main/java/com/restaurant/estado/EstadoListo.java` | Sí |
-| `EstadoEntregado` | `src/main/java/com/restaurant/estado/EstadoEntregado.java` | Sí |
-| `Notificador` | `src/main/java/com/restaurant/observador/Notificador.java` | Sí |
-| `NotificadorCocina` | `src/main/java/com/restaurant/observador/NotificadorCocina.java` | Sí |
-| `NotificadorMesero` | `src/main/java/com/restaurant/observador/NotificadorMesero.java` | Sí |
-| `EstrategiaReporte` | `src/main/java/com/restaurant/reportes/EstrategiaReporte.java` | Sí |
-| `ReportePlatosMasPedidos` | `src/main/java/com/restaurant/reportes/ReportePlatosMasPedidos.java` | Sí |
-| `ReportePlatosMenosPedidos` | `src/main/java/com/restaurant/reportes/ReportePlatosMenosPedidos.java` | Sí |
-| `ReporteTiempoPromedio` | `src/main/java/com/restaurant/reportes/ReporteTiempoPromedio.java` | Sí |
-| `ReporteService` | `src/main/java/com/restaurant/reportes/ReporteService.java` | Sí |
-| `GestorPedidos` | `src/main/java/com/restaurant/servicio/GestorPedidos.java` | Sí |
-
-## 5. Implementación
-
-**Estructura de paquetes:**
+**Hexagonal (puertos y adaptadores) en un solo despliegue** — ver
+[ADR-001](docs/adr/ADR-001-arquitectura-hexagonal.md) y la comparación contra capas, microservicios
+y eventos en [arquitectura.md §3](docs/arquitectura.md#3-comparación-de-estilos-y-decisión).
 
 ```
 src/main/java/com/restaurant/
-├── Main.java              # Demo ejecutable de consola
-├── modelo/                # Entidades del dominio: Pedido, ItemPedido, Plato
-├── fabrica/                # Factory Method: PlatoFactory, TipoPlato
-├── estado/                 # Patrón State: EstadoPedido y sus 4 estados
-├── observador/              # Patrón Observer: Notificador y sus implementaciones
-├── reportes/                # Patrón Strategy: EstrategiaReporte y ReporteService
-└── servicio/                # Orquestación: GestorPedidos
+├── OrderflowApplication.java          arranque (Spring Boot)
+├── dominio/                           NÚCLEO — Java puro, sin frameworks
+│   ├── modelo/  estado/  fabrica/     Pedido, State, Factory Method (Corte 1)
+│   ├── observador/Notificador         puerto de notificaciones (Observer)
+│   ├── inventario/                    Reto 1: Ingrediente, Receta, CalculadoraConsumo, PoliticaDevolucion
+│   ├── cuenta/                        Reto 2: EstrategiaDivision (Strategy), DivisorCuenta, Repartidor
+│   └── reportes/                      Reto 3: EstrategiaReporte (Strategy), Reporte, Indicadores, Periodo
+├── aplicacion/
+│   ├── casodeuso/                     GestorPedidos, ServicioInventario, ServicioCuenta, ServicioAnalitica
+│   └── puerto/salida/                 PedidoRepositorio, MenuRepositorio, InventarioRepositorio, AlertaInventario
+└── infraestructura/                   ADAPTADORES
+    ├── rest/                          entrada HTTP (controladores, DTOs, manejo de errores)
+    ├── ui/                            entrada Swing (POS: mesas, pedidos, inventario, analítica, dividir cuenta)
+    ├── persistencia/                  salida JDBC + H2 + HikariCP
+    ├── notificacion/                  salida: cocina, mesero, alertas de stock
+    └── config/                        composition root y datos iniciales
 ```
 
-**Dónde se aplica cada patrón/principio (enlaces directos):**
-- Factory Method → [`PlatoFactory.java`](src/main/java/com/restaurant/fabrica/PlatoFactory.java)
-- State → [`EstadoPedido.java`](src/main/java/com/restaurant/estado/EstadoPedido.java) y paquete `estado/`
-- Observer → [`Notificador.java`](src/main/java/com/restaurant/observador/Notificador.java) y paquete `observador/`
-- Strategy → [`EstrategiaReporte.java`](src/main/java/com/restaurant/reportes/EstrategiaReporte.java) y paquete `reportes/`
-- SOLID (SRP/DIP/ISP) → ver comentarios Javadoc en cada clase citada en 4.1
+La regla "el dominio no depende de la infraestructura" la verifica
+`ReglasDeDependenciaTest` en cada `mvn test`.
 
-**Instrucciones de ejecución:** ver [`README_TECNICO.md`](README_TECNICO.md).
+---
 
-## 6. Análisis Técnico
+## Tabla de trazabilidad
 
-**Cohesión y acoplamiento (con ejemplos concretos):**
-- Alta cohesión: `Pedido` solo mezcla datos y comportamiento que le
-  pertenecen directamente a un pedido (sus ítems, su estado, sus
-  timestamps); no contiene lógica de reportes ni de creación de platos.
-- Bajo acoplamiento: `Pedido` y `GestorPedidos` dependen de las interfaces
-  `EstadoPedido` y `Notificador`, no de clases concretas — se puede
-  reemplazar `NotificadorCocina` por cualquier otra implementación sin
-  recompilar `Pedido`.
+| Reto (Corte 1) | Atributo de calidad | Decisión arquitectónica | Dónde está | Prueba que lo evidencia | Resultado |
+|---|---|---|---|---|---|
+| **R1. Inventario con trazabilidad de ingredientes** *(funcionalidad nueva exigida por el reto)* | Integridad de datos, trazabilidad (auditabilidad), confiabilidad bajo concurrencia | Componente de inventario detrás del puerto `InventarioRepositorio`; descuento atómico por pedido con `UPDATE ... WHERE stock >= ?`, orden fijo de bloqueo y `CHECK stock >= 0` ([ADR-003](docs/adr/ADR-003-consistencia-inventario.md)); un `MovimientoInventario` por cada cambio; `PoliticaDevolucion` (devolución vs merma) en el dominio | `dominio/inventario/`, `aplicacion/casodeuso/ServicioInventario.java`, `infraestructura/persistencia/InventarioRepositorioJdbc.java`, pestaña *Inventario* | Unitarias: `IngredienteTest`, `RecetaYConsumoTest`, `ServicioInventarioTest`, `GestorPedidosTest` · Integración: `InventarioRepositorioJdbcIT` (**40 hilos, 1 huevo c/u, stock 10**) · Sistema: `ApiInventarioIT` · Carga: `flujo_pedidos_k6.js` (teardown verifica stock ≥ 0) | La prueba de concurrencia exige exactamente 10 ventas, 30 rechazos, stock 0 y 10 movimientos. Sin stock: 409 con faltantes y el pedido no se crea. Carga: ver [pruebas.md §6](docs/pruebas.md#6-resultados) |
+| **R2. Dividir la cuenta al gusto de las personas** *(funcionalidad nueva exigida por el reto)* | Modificabilidad (nuevas formas de dividir), exactitud (correctitud), usabilidad | Patrón Strategy (`EstrategiaDivision`: igualitaria, por consumo con platos compartidos, por porcentaje) + `DivisorCuenta` con propina proporcional; `Repartidor` por resto mayor y dinero en `long` para cuadrar al peso; invariante verificada en `DivisionCuenta` | `dominio/cuenta/`, `aplicacion/casodeuso/ServicioCuenta.java`, `infraestructura/rest/DivisionCuentaController.java`, `infraestructura/ui/DialogoDividirCuenta.java` | Unitarias: `RepartidorTest`, `DivisionCuentaTest`, `ServicioCuentaTest` · Propiedades (jqwik): `RepartidorPropiedadesTest` (2 × 500 casos) · Sistema: `ApiDivisionCuentaIT` · Carga: check "cuenta cuadra al peso" | $100.000 / 3 = 33.334 + 33.333 + 33.333; para todo total y 1..20 personas la suma es exacta; ejemplo por consumo: Ana $73.000 / Luis $41.000 |
+| **R3. Analítica más completa y con gráficas** *(nuevos reportes y KPI exigidos por el reto)* | Usabilidad (visualización), modificabilidad (nuevos reportes), rendimiento de consultas | Las estrategias de reporte devuelven datos (`Reporte`) en vez de texto; 4 reportes nuevos + `Indicadores` + `Periodo`; el mismo caso de uso alimenta dos adaptadores: gráficas Java2D en Swing y JSON en `/api/analitica` | `dominio/reportes/`, `aplicacion/casodeuso/ServicioAnalitica.java`, `infraestructura/ui/PanelAnalitica.java`, `GraficoBarras.java`, `infraestructura/rest/AnaliticaController.java` | Unitarias: `ReportesTest`, `ServicioAnaliticaTest` · Sistema: `ApiAnaliticaIT` · Carga: `analitica_k6.js` antes/después de cargar pedidos (SLO p95 ≤ 500 ms) | Escenario fijo: ventas $125.000, ticket $62.500, 20 min, cancelación 1/3. Captura: [docs/img/analitica.png](docs/img/analitica.png). Carga: ver [pruebas.md §6](docs/pruebas.md#6-resultados) |
+| **R0. Límites del Corte 1: sin persistencia y un solo usuario** | Disponibilidad de los datos, rendimiento con varios meseros, mantenibilidad (una regla, varios canales) | Arquitectura hexagonal: puertos de salida con adaptadores JDBC/H2 + HikariCP ([ADR-002](docs/adr/ADR-002-persistencia-jdbc-h2-pool.md)); API REST y POS Swing como dos adaptadores de entrada sobre los mismos casos de uso; candados por mesa/pedido en `GestorPedidos` | `aplicacion/puerto/salida/`, `infraestructura/persistencia/`, `infraestructura/rest/`, `infraestructura/ui/` | Arquitectura: `ReglasDeDependenciaTest` · Integración: `PedidoRepositorioJdbcIT` · Sistema: `ApiPedidosIT` · Carga: `flujo_pedidos_k6.js` baseline + carga (SLO p95 ≤ 500 ms, errores < 1 %) | Mesa ocupada → 409; flujo completo por HTTP → *Entregado*. Carga: ver [pruebas.md §6](docs/pruebas.md#6-resultados) |
 
-**Extensiones futuras que el diseño facilita:**
-- Agregar un nuevo estado (p. ej. `Cancelado`) o un nuevo canal de
-  notificación (p. ej. notificación push) sin modificar clases existentes.
-- Agregar un nuevo reporte (p. ej. "ventas por hora") implementando
-  `EstrategiaReporte`.
+**Lo que no se resolvió por completo** (detalle en [arquitectura.md §7](docs/arquitectura.md#7-límites-conocidos-y-trabajo-para-el-corte-3)):
+pedido e inventario se coordinan con una compensación y no con una transacción única; los candados
+por mesa solo protegen dentro de una instancia; la analítica recalcula sobre todo el historial en
+cada consulta (cuello de botella esperado); H2 en memoria por defecto.
 
-**Límites honestos del diseño (lo que este diseño *no* resuelve todavía):**
-- No hay persistencia: si el proceso termina, se pierden los pedidos. El
-  diseño actual (`GestorPedidos` guardando una lista en memoria) tendría
-  que evolucionar hacia un repositorio (interfaz `PedidoRepository`) para
-  soportar una base de datos sin romper el resto del sistema — eso queda
-  fuera del alcance de este corte.
-- No hay concurrencia real (varios meseros tomando pedidos al mismo
-  tiempo); la demo es secuencial.
+---
 
-## 7. Créditos y Roles
+## Créditos y roles
 
 | Integrante | Rol / contribución principal |
 |---|---|
-| Federico Valdez | Programador - Plasmar la idea |
-| Daniel Sanabria | Arquitecto - Pensar en la posible solucion al problema |
+| Federico Valdez | Programador |
+| Daniel Sanabria | Arquitecto |
 
-
+Videos del Corte 1: [videos/](videos/).

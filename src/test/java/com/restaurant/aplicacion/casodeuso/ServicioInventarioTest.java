@@ -186,6 +186,22 @@ class ServicioInventarioTest {
     }
 
     @Test
+    @DisplayName("Consultas: ingredientes, bajo mínimo, receta de un plato y movimientos de un pedido")
+    void shouldAnswerQueries() {
+        when(repo.listarIngredientes()).thenReturn(List.of(
+                new Ingrediente("ARROZ", "Arroz", UnidadMedida.GRAMO, 100, 1_000),
+                new Ingrediente("HUEVO", "Huevo", UnidadMedida.UNIDAD, 20, 4)));
+
+        assertEquals(2, servicio.ingredientes().size());
+        assertEquals("ARROZ", servicio.bajoMinimo().get(0).getCodigo());
+        assertEquals(1, servicio.bajoMinimo().size());
+        assertEquals(150L, servicio.recetaDe("Bandeja Paisa").orElseThrow().getPorPorcion().get("ARROZ"));
+        assertEquals(true, servicio.recetaDe("Pizza").isEmpty());
+        servicio.movimientosDePedido(11);
+        verify(repo).movimientosDePedido(11);
+    }
+
+    @Test
     @DisplayName("Porciones disponibles se calculan con el stock actual y la receta")
     void shouldComputeAvailablePortions() {
         when(repo.listarIngredientes()).thenReturn(List.of(
