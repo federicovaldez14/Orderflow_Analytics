@@ -59,9 +59,3 @@ mensaje y, si falta stock, con la lista de ingredientes que faltan).
 | H3-1 | Quitar un plato pide confirmación con un diálogo que explica qué pasa con el inventario. | `salon.js` (acción `data-quitar`) | Manual: el diálogo aparece; "Volver" no modifica el pedido. |
 | H5-2 | El botón *Calcular* se deshabilita mientras los porcentajes no sumen 100, y el indicador lo dice. | `src/main/resources/static/js/division.js` (`pintarSumaPorcentajes`) | Manual: 50 + 40 → botón deshabilitado y "Suman 90 % (deben sumar 100)". |
 | H8-1 | Los avisos se muestran arriba a la derecha en escritorio (en celular siguen abajo, sobre la barra de navegación). | `src/main/resources/static/css/app.css` (`.toasts`) | Manual: tras enviar la comanda, los botones del panel quedan libres. |
-
-## 5. Siguiente paso: validación con usuarios
-
-La evaluación heurística la hizo el equipo. Para contrastarla con usuarios reales está listo el
-protocolo con tareas y cuestionario **SUS** en [`protocolo-sus.md`](protocolo-sus.md) (3 usuarios,
-unos 10 minutos cada uno).
