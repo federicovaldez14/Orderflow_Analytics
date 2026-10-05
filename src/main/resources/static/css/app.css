@@ -202,6 +202,7 @@ svg { display: block; }
 .mesa-total { font-weight: 700; }
 .mesa-tiempo { position: absolute; top: 16px; right: 16px; font-size: 12px; color: var(--texto-3); }
 .mesa.libre .mesa-num { color: var(--texto-2); }
+.mesa-tiempo.borrador { color: #f0b24a; font-weight: 700; }
 
 .panel-mesa { position: sticky; top: 24px; max-height: calc(100vh - 48px); display: flex; flex-direction: column; overflow: hidden; }
 .panel-mesa .tarjeta-cab { padding-bottom: 14px; border-bottom: 1px solid var(--borde); }
@@ -384,7 +385,8 @@ dialog::backdrop { background: rgba(5, 5, 6, .66); backdrop-filter: blur(3px); }
 
 /* ---------- Avisos ---------- */
 
-.toasts { position: fixed; right: 20px; bottom: 20px; z-index: 70; display: grid; gap: 10px; width: min(380px, calc(100vw - 40px)); }
+/* Arriba a la derecha (evaluación UX, hallazgo H8-1): abajo tapaba los botones del panel de la mesa. */
+.toasts { position: fixed; right: 20px; top: 20px; z-index: 70; display: grid; gap: 10px; width: min(380px, calc(100vw - 40px)); }
 .toast {
   display: grid; grid-template-columns: auto 1fr; gap: 12px; padding: 13px 15px;
   background: var(--sup-3); border: 1px solid var(--borde-fuerte); border-radius: 12px; box-shadow: var(--sombra);
@@ -439,5 +441,5 @@ dialog::backdrop { background: rgba(5, 5, 6, .66); backdrop-filter: blur(3px); }
   .resumen .chip b { font-size: 16px; }
   .mesa { min-height: 128px; padding: 14px; }
   .mesa-num { font-size: 30px; }
-  .toasts { bottom: 80px; right: 16px; width: calc(100vw - 32px); }
+  .toasts { top: auto; bottom: 80px; right: 16px; width: calc(100vw - 32px); }
 }

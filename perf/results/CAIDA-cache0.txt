@@ -1,0 +1,1 @@
+Servicio caido durante: analitica carga (despues de 251624 pedidos) (cache=0 s, memoria=1g, base=memoria). Causa: no registrada (el log de esta corrida se sobrescribio); mismo patron que las demas caidas por memoria

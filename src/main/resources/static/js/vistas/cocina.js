@@ -45,7 +45,7 @@ export const cocina = {
 function comanda(p, v) {
   const tarde = minutosDesde(p.horaCreacion) > MINUTOS_TARDE;
   return `
-    <article class="comanda" style="--c: var(--${v})">
+    <article class="comanda" style="--c: var(--${v})" data-mesa="${p.mesa}" data-estado="${esc(p.estado)}">
       <div class="comanda-cab">
         <b>Mesa ${p.mesa}</b>
         <span class="${tarde ? 'tarde' : ''}">#${p.id} · ${transcurrido(p.horaCreacion)}</span>

@@ -1,0 +1,1 @@
+Servicio caido durante: analitica carga (despues de 264618 pedidos) (cache=3 s, memoria=1g, base=archivo). Causa: sin OutOfMemoryError en los logs: el servicio quedo saturado (no respondio /actuator/health en 5 s); cada calculo del panel tardo ~4,8 s

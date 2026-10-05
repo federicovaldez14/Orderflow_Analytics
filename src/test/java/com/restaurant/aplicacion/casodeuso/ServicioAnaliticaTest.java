@@ -160,4 +160,53 @@ class ServicioAnaliticaTest {
         // Assert
         assertEquals(1, lecturas.get());
     }
+
+    @Test
+    @DisplayName("CONCURRENCIA: usuarios pidiendo HOY, SEMANA y TODO a la vez -> nunca hay dos cálculos simultáneos")
+    void shouldNeverComputeTwoPeriodsAtTheSameTime() throws Exception {
+        // Arrange: stub lento que mide cuántas lecturas del historial hay en curso al mismo tiempo
+        AtomicInteger enCurso = new AtomicInteger();
+        AtomicInteger maximoSimultaneo = new AtomicInteger();
+        PedidoRepositorio lento = new PedidoRepositorio() {
+            public int siguienteId() { return 0; }
+            public void guardar(Pedido p) { }
+            public Optional<Pedido> buscarPorId(int id) { return Optional.empty(); }
+            public Optional<Pedido> buscarActivoPorMesa(int m) { return Optional.empty(); }
+            public List<Pedido> listarCreadosDesde(LocalDateTime d) { return leer(); }
+            public List<Pedido> listarTodos() { return leer(); }
+
+            private List<Pedido> leer() {
+                maximoSimultaneo.accumulateAndGet(enCurso.incrementAndGet(), Math::max);
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                enCurso.decrementAndGet();
+                return List.of();
+            }
+        };
+        ServicioAnalitica conCache = new ServicioAnalitica(lento, reloj, Duration.ofSeconds(3));
+        ExecutorService pool = Executors.newFixedThreadPool(15);
+        CountDownLatch largada = new CountDownLatch(1);
+        List<Future<ServicioAnalitica.PanelAnalitico>> resultados = new ArrayList<>();
+        Periodo[] periodos = Periodo.values();
+
+        // Act: 15 usuarios, 5 por cada periodo
+        for (int i = 0; i < 15; i++) {
+            Periodo periodo = periodos[i % periodos.length];
+            resultados.add(pool.submit(() -> {
+                largada.await();
+                return conCache.panel(periodo);
+            }));
+        }
+        largada.countDown();
+        for (Future<ServicioAnalitica.PanelAnalitico> f : resultados) {
+            f.get(10, TimeUnit.SECONDS);
+        }
+        pool.shutdown();
+
+        // Assert: aunque se pidieron tres periodos distintos, nunca hubo dos cálculos a la vez
+        assertEquals(1, maximoSimultaneo.get());
+    }
 }

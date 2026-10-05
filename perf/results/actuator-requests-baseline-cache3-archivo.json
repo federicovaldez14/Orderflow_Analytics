@@ -1,0 +1,60 @@
+﻿{
+    "name":  "http.server.requests",
+    "description":  "Duration of HTTP server request handling",
+    "baseUnit":  "seconds",
+    "measurements":  [
+                         {
+                             "statistic":  "COUNT",
+                             "value":  492282.0
+                         },
+                         {
+                             "statistic":  "TOTAL_TIME",
+                             "value":  312.4517034
+                         },
+                         {
+                             "statistic":  "MAX",
+                             "value":  0.3943743
+                         }
+                     ],
+    "availableTags":  [
+                          {
+                              "tag":  "exception",
+                              "values":  [
+                                             "None"
+                                         ]
+                          },
+                          {
+                              "tag":  "method",
+                              "values":  [
+                                             "POST",
+                                             "GET"
+                                         ]
+                          },
+                          {
+                              "tag":  "uri",
+                              "values":  [
+                                             "/api/menu",
+                                             "/api/inventario/{codigo}/reposicion",
+                                             "/api/pedidos/{id}/division",
+                                             "/api/analitica",
+                                             "/actuator/health",
+                                             "/api/pedidos/{id}/avanzar",
+                                             "/api/inventario",
+                                             "/api/pedidos"
+                                         ]
+                          },
+                          {
+                              "tag":  "outcome",
+                              "values":  [
+                                             "SUCCESS"
+                                         ]
+                          },
+                          {
+                              "tag":  "status",
+                              "values":  [
+                                             "200",
+                                             "201"
+                                         ]
+                          }
+                      ]
+}

@@ -1,1 +1,1 @@
-Servicio caido durante: analitica carga (despues de 199214 pedidos) (cache=3 s, memoria=1g)
+Servicio caido durante: analitica carga (despues de 225330 pedidos) (cache=3 s, memoria=1g, base=memoria). Causa: Terminating due to java.lang.OutOfMemoryError: Java heap space

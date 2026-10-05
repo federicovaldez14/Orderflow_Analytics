@@ -1,0 +1,1 @@
+﻿Pedidos en la base antes de la analitica bajo carga: 47096

@@ -16,6 +16,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.release>17</maven.compiler.release>
     <spring-boot.version>2.7.18</spring-boot.version>
+    <ui.excluir>**/*UiIT.java</ui.excluir>
   </properties>
 
   <!-- Igual que en los talleres: no se hereda de spring-boot-starter-parent,
@@ -51,6 +52,15 @@
         <groupId>net.bytebuddy</groupId>
         <artifactId>byte-buddy-agent</artifactId>
         <version>1.14.15</version>
+      </dependency>
+      <!-- Selenium 4.50 (trae Selenium Manager, que descarga el driver del
+           navegador solo). Spring Boot 2.7 fija una 4.1 sin Selenium Manager. -->
+      <dependency>
+        <groupId>org.seleniumhq.selenium</groupId>
+        <artifactId>selenium-bom</artifactId>
+        <version>4.50.0</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
       <dependency>
         <groupId>org.springframework.boot</groupId>
@@ -124,6 +134,12 @@
       <version>1.8.4</version>
       <scope>test</scope>
     </dependency>
+    <!-- Pruebas de UI sobre el POS web (bonificación). Solo corren con -Pui-tests -->
+    <dependency>
+      <groupId>org.seleniumhq.selenium</groupId>
+      <artifactId>selenium-java</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -171,6 +187,10 @@
               <includes>
                 <include>**/*IT.java</include>
               </includes>
+              <!-- Las pruebas de UI (*UiIT) necesitan un navegador: van aparte, con -Pui-tests -->
+              <excludes>
+                <exclude>${ui.excluir}</exclude>
+              </excludes>
             </configuration>
           </execution>
         </executions>
@@ -250,4 +270,14 @@
       </plugin>
     </plugins>
   </build>
+  <profiles>
+    <!-- Pruebas de UI con Selenium sobre el POS web: mvn verify -Pui-tests
+         (navegador: Edge en Windows, Chrome en Linux/macOS; se cambia con -Dui.navegador=chrome|edge|firefox) -->
+    <profile>
+      <id>ui-tests</id>
+      <properties>
+        <ui.excluir>**/NoExcluirNada.java</ui.excluir>
+      </properties>
+    </profile>
+  </profiles>
 </project>

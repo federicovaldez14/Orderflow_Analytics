@@ -11,6 +11,8 @@ const CATEGORIAS = [
 const estado = {
   mesas: [], pedidos: new Map(), menu: [], disponibilidad: {},
   mesaSel: null, ticket: new Map(), categoria: 'TODO', agregando: false,
+  // Comandas sin enviar de cada mesa (evaluación UX, hallazgo H5-1): cambiar de mesa no las borra.
+  borradores: new Map(),
   consumo: { id: null, lista: [] }, nombresIngredientes: {},
   firmaMesas: '', firmaPanel: '',
 };
@@ -57,8 +59,12 @@ const mesaSel = () => estado.mesas.find((m) => m.mesa === estado.mesaSel);
 
 function seleccionar(n) {
   if (estado.mesaSel !== n) {
+    if (estado.mesaSel !== null) {
+      if (estado.ticket.size) estado.borradores.set(estado.mesaSel, estado.ticket);
+      else estado.borradores.delete(estado.mesaSel);
+    }
     estado.mesaSel = n;
-    estado.ticket = new Map();
+    estado.ticket = estado.borradores.get(n) || new Map();
     estado.agregando = false;
   }
   pintarMesas(true);
@@ -71,7 +77,8 @@ function seleccionar(n) {
 // ---------- Mapa de mesas ----------
 
 function pintarMesas(forzar = false) {
-  const firma = JSON.stringify([estado.mesas, estado.mesaSel, [...estado.pedidos.keys()], Math.floor(Date.now() / 60000)]);
+  const firma = JSON.stringify([estado.mesas, estado.mesaSel, [...estado.pedidos.keys()], Math.floor(Date.now() / 60000),
+    estado.mesas.map((m) => platosSinEnviar(m.mesa))]);
   if (!forzar && firma === estado.firmaMesas) return;
   estado.firmaMesas = firma;
 
@@ -88,16 +95,23 @@ function pintarMesas(forzar = false) {
   raiz.querySelector('#mesas').innerHTML = estado.mesas.map((m) => {
     const p = pedidoDeMesa(m);
     return `
-      <button class="mesa ${m.libre ? 'libre' : ''}" data-mesa="${m.mesa}" aria-pressed="${m.mesa === estado.mesaSel}"
+      <button class="mesa ${m.libre ? 'libre' : ''}" data-mesa="${m.mesa}" data-estado="${esc(m.estado)}" aria-pressed="${m.mesa === estado.mesaSel}"
               style="--c: var(--${varEstado(m.estado)})" aria-label="Mesa ${m.mesa}, ${esc(m.estado)}">
         <div class="mesa-num"><small>MESA</small>${String(m.mesa).padStart(2, '0')}</div>
-        ${p ? `<span class="mesa-tiempo">${transcurrido(p.horaCreacion)}</span>` : ''}
+        ${p ? `<span class="mesa-tiempo">${transcurrido(p.horaCreacion)}</span>`
+          : platosSinEnviar(m.mesa) ? `<span class="mesa-tiempo borrador" data-borrador>Sin enviar · ${platosSinEnviar(m.mesa)}</span>` : ''}
         <div class="mesa-pie">
           ${pastilla(m.estado)}
           ${m.libre ? '' : `<span class="mesa-total mono">${pesos(m.total)}</span>`}
         </div>
       </button>`;
   }).join('');
+}
+
+/** Unidades en la comanda sin enviar de una mesa (la seleccionada usa el ticket en edición). */
+function platosSinEnviar(mesa) {
+  const t = mesa === estado.mesaSel ? estado.ticket : estado.borradores.get(mesa);
+  return t ? [...t.values()].reduce((a, b) => a + b, 0) : 0;
 }
 
 function varEstado(e) {
@@ -107,6 +121,7 @@ function varEstado(e) {
 // ---------- Panel lateral ----------
 
 function pintarPanel(forzar = false) {
+  pintarMesas();   // el mapa muestra "Sin enviar" mientras se arma la comanda
   const panel = raiz.querySelector('#panel-mesa');
   const m = mesaSel();
   const p = pedidoDeMesa(m);
@@ -257,6 +272,10 @@ async function clicPanel(ev) {
     return pintarPanel();
   }
   if (t.dataset.quitar !== undefined) {
+    // Evaluación UX, hallazgo H3-1: quitar un plato ya enviado se confirma (antes era un clic sin vuelta atrás).
+    const linea = p.lineas.find((l) => l.linea === Number(t.dataset.quitar));
+    if (!await confirmar(`¿Quitar ${linea.cantidad}× ${linea.plato}?`,
+      'Se quita del pedido y sus ingredientes vuelven al inventario si la cocina aún no empezó.', 'Quitar plato', true)) return;
     const r = await intentar(() => api.quitarLinea(p.id, Number(t.dataset.quitar)), 'Línea quitada');
     if (r) { estado.consumo.id = null; await salon.refrescar(); }
     return;
@@ -267,7 +286,10 @@ async function clicPanel(ev) {
       t.disabled = true;
       const lineas = [...estado.ticket].map(([plato, cantidad]) => ({ plato, cantidad }));
       const r = await intentar(() => api.crearPedido(m.mesa, lineas), `Comanda de la mesa ${m.mesa} enviada a cocina`);
-      if (r) estado.ticket = new Map();
+      if (r) {
+        estado.ticket = new Map();
+        estado.borradores.delete(m.mesa);
+      }
       t.disabled = false;
       return salon.refrescar();
     }

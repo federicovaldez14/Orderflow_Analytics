@@ -35,9 +35,10 @@ y un único proceso. La propia documentación del Corte 1 declaraba dos límites
 sin concurrencia real.
 
 **Corte 2 (este entregable).** El mismo dominio, reorganizado en **arquitectura hexagonal**, con
-persistencia en H2, una API REST además de la UI de escritorio, los tres retos resueltos
-(inventario, división de cuenta, analítica con gráficas) y pruebas unitarias, de integración y de
-carga.
+persistencia en H2, tres adaptadores de entrada sobre los mismos casos de uso (POS de escritorio
+Swing, API REST y POS web), los tres retos resueltos (inventario, división de cuenta, analítica con
+gráficas) y pruebas unitarias, de arquitectura, de integración, de sistema, de carga y de UI, más una
+evaluación heurística de UX.
 
 ---
 
@@ -57,9 +58,10 @@ el [README](../README.md#tabla-de-trazabilidad) para que sea lo primero que se v
 
 **Funcionalidad nueva agregada.** El enunciado solo permite agregar funcionalidad cuando un reto lo
 exige: inventario (R1), división de cuenta (R2) y los nuevos reportes/KPI (R3) están en esa
-situación y están marcados en la tabla de trazabilidad. La API REST no es funcionalidad de negocio
-nueva: es un segundo adaptador de entrada sobre los mismos casos de uso (lo necesitan las pruebas de
-caja negra y de carga).
+situación y están marcados en la tabla de trazabilidad. La API REST y el POS web no son
+funcionalidad de negocio nueva: son adaptadores de entrada sobre los mismos casos de uso (la API la
+necesitan las pruebas de caja negra y de carga; la web responde a la usabilidad de R3 y permite
+pruebas de UI; ver [ADR-004](adr/ADR-004-interfaz-web-adaptador.md)).
 
 ---
 
@@ -70,7 +72,7 @@ caja negra y de carga).
 | Criterio | Viene de | Atributo de calidad |
 |---|---|---|
 | K1. Agregar formas de dividir, reportes o canales sin tocar lo existente | R2, R3 | Modificabilidad / extensibilidad |
-| K2. Varios adaptadores de entrada (POS Swing, API REST, k6) con **las mismas reglas** | R0, R3 | Mantenibilidad (no duplicar reglas) |
+| K2. Varios adaptadores de entrada (POS Swing, API REST, POS web, k6) con **las mismas reglas** | R0, R3 | Mantenibilidad (no duplicar reglas) |
 | K3. Probar reglas de negocio aisladas (reparto al peso, política de devolución, stock) | R1, R2 | Testabilidad |
 | K4. Consistencia del inventario con pedidos concurrentes | R1, R0 | Integridad de datos / confiabilidad |
 | K5. Cambiar la tecnología de persistencia (H2 → PostgreSQL) sin tocar el negocio | R0 | Portabilidad / modificabilidad |
@@ -96,8 +98,9 @@ bien modularizado". Queda registrada en
 
 - [ADR-002](adr/ADR-002-persistencia-jdbc-h2-pool.md) — persistencia con JDBC plano sobre H2 y pool HikariCP.
 - [ADR-003](adr/ADR-003-consistencia-inventario.md) — cómo se garantiza que el inventario no se sobrevenda con pedidos concurrentes.
+- [ADR-004](adr/ADR-004-interfaz-web-adaptador.md) — interfaz web como tercer adaptador de entrada (y por qué no una SPA aparte).
 
-**Qué se gana:** reglas en un solo lugar para Swing, REST y pruebas; núcleo probado sin base de
+**Qué se gana:** reglas en un solo lugar para Swing, REST, web y pruebas; núcleo probado sin base de
 datos; persistencia reemplazable; los retos se resuelven agregando clases (estrategias, adaptadores),
 no editando las existentes.
 
@@ -141,19 +144,25 @@ flowchart TB
     admin(["👤 Administrador / dueño<br/>inventario y analítica"])
     cliente(["🖥️ Cliente HTTP<br/>(k6, pruebas de sistema, futuros tableros)"])
     sistema["<b>Orderflow Analytics</b><br/>Sistema de pedidos, inventario, división de cuenta y analítica del restaurante"]
-    mesero --> sistema
-    cocina --> sistema
-    admin --> sistema
+    fuentes["Google Fonts<br/><i>sistema externo, opcional</i>"]
+    mesero -->|"POS de escritorio o navegador<br/>(PC, tablet, celular)"| sistema
+    cocina -->|"navegador o escritorio"| sistema
+    admin -->|"navegador o escritorio"| sistema
     cliente -->|"JSON / HTTP"| sistema
+    sistema -.->|"tipografía de la web"| fuentes
 ```
 
 ### 4.3 Diagrama de contenedores (C4 nivel 2)
 
 ```mermaid
 flowchart TB
+    subgraph navegador["Navegador (PC, tablet o celular)"]
+        web["POS web<br/><i>HTML + CSS + JavaScript (módulos ES)</i><br/>salón, cocina, inventario, analítica, actividad"]
+    end
     subgraph jvm["Proceso Java 17 — java -jar orderflow-analytics.jar"]
-        pos["POS de escritorio<br/><i>Swing</i><br/>mapa de mesas, pedidos, inventario, analítica"]
-        api["API REST<br/><i>Spring Boot / Tomcat, puerto 8080</i><br/>/api/pedidos, /api/inventario, /api/analitica"]
+        pos["POS de escritorio<br/><i>Swing + FlatLaf</i><br/>mapa de mesas, pedidos, inventario, analítica"]
+        est["Archivos estáticos<br/><i>Spring Boot, /</i><br/>index.html, css, js"]
+        api["API REST<br/><i>Spring Boot / Tomcat, puerto 8080</i><br/>/api/pedidos, /api/inventario, /api/analitica, /api/notificaciones"]
         nucleo["Núcleo de la aplicación<br/><i>Java puro</i><br/>casos de uso + dominio"]
         act["Actuator + Prometheus<br/><i>/actuator</i>"]
         pos -->|"llamadas Java"| nucleo
@@ -162,11 +171,16 @@ flowchart TB
     db[("Base de datos H2<br/><i>embebida, JDBC + HikariCP</i><br/>pedidos, carta, inventario, movimientos")]
     nucleo -->|"puertos de salida → adaptadores JDBC"| db
     usuarios(["Mesero · Cocina · Administrador"]) --> pos
-    http(["k6 · pruebas de sistema"]) -->|HTTP/JSON| api
+    usuarios --> web
+    est -->|"descarga la web (HTTP)"| web
+    web -->|"HTTP/JSON cada ~2,5 s"| api
+    http(["k6 · pruebas de sistema · Selenium"]) -->|HTTP/JSON| api
     http -->|métricas| act
 ```
 
-H2 corre dentro del mismo proceso (modo embebido). Por eso es un contenedor lógico distinto
+El POS web no es un despliegue aparte: Spring Boot sirve sus archivos desde
+`src/main/resources/static/` en el mismo puerto, y el navegador solo habla con la API REST
+([ADR-004](adr/ADR-004-interfaz-web-adaptador.md)). H2 corre dentro del mismo proceso (modo embebido). Por eso es un contenedor lógico distinto
 (esquema, transacciones) pero no un despliegue separado; cambiarlo por PostgreSQL es cambiar la URL
 y el driver (ADR-002).
 
@@ -174,9 +188,10 @@ y el driver (ADR-002).
 
 ```mermaid
 flowchart LR
-    subgraph entrada["Adaptadores de ENTRADA<br/>infraestructura/ui · infraestructura/rest"]
-        ui["PosApp, PanelMapaMesas,<br/>PanelInventario, PanelAnalitica,<br/>DialogoDividirCuenta"]
-        rest["PedidoController, InventarioController,<br/>DivisionCuentaController, AnaliticaController,<br/>ManejadorErrores"]
+    subgraph entrada["Adaptadores de ENTRADA<br/>infraestructura/ui · infraestructura/rest · static/"]
+        ui["Swing: PosApp, PanelMapaMesas,<br/>PanelInventario, PanelAnalitica,<br/>DialogoDividirCuenta"]
+        rest["REST: PedidoController, InventarioController,<br/>DivisionCuentaController, AnaliticaController,<br/>NotificacionesController, ManejadorErrores"]
+        web["Web (navegador): api.js + vistas/<br/>salon, cocina, inventario,<br/>analitica, actividad"]
     end
     subgraph app["APLICACIÓN — aplicacion/"]
         gp["GestorPedidos"]
@@ -207,6 +222,8 @@ flowchart LR
 
     ui --> gp & si & sc & sa
     rest --> gp & si & sc & sa
+    web -->|"HTTP/JSON"| rest
+    rest -->|"lee avisos"| noti
     gp --> si
     gp & si & sc & sa --> dom
     gp --> ppr & pmr
@@ -232,7 +249,7 @@ si alguien rompe la regla, el build falla. Spring solo aparece en `infraestructu
 | Entidades y reglas | `com.restaurant.dominio.*` | Núcleo hexagonal; State, Factory Method, Strategy (x2), Observer |
 | Casos de uso | `com.restaurant.aplicacion.casodeuso` | Servicios de aplicación |
 | Puertos de salida | `com.restaurant.aplicacion.puerto.salida` + `dominio.observador.Notificador` | Puertos |
-| Adaptadores de entrada | `com.restaurant.infraestructura.ui`, `...rest` | Adaptadores primarios |
+| Adaptadores de entrada | `com.restaurant.infraestructura.ui` (Swing), `...rest` (HTTP), `src/main/resources/static/` (web, cliente de la API) | Adaptadores primarios |
 | Adaptadores de salida | `com.restaurant.infraestructura.persistencia`, `...notificacion` | Adaptadores secundarios |
 | Ensamblado | `com.restaurant.infraestructura.config`, `OrderflowApplication` | Composition root |
 
@@ -252,13 +269,31 @@ Resumen (el detalle, con cada clase de prueba y su propósito, está en [`prueba
 | Integración | Adaptador JDBC ↔ H2 real; concurrencia del inventario | La atomicidad y el SQL solo se prueban con la base de datos de verdad | JUnit 5, H2 | `mvn verify` |
 | Sistema (caja negra) | Flujos completos por HTTP: pedidos, inventario, división, analítica | Verifica todas las fronteras juntas, como un cliente | Spring Boot Test, TestRestTemplate | `mvn verify` |
 | Carga | Flujo del mesero y panel de analítica con muchos usuarios | SLO de los retos bajo concurrencia | k6 | `perf/run-perf.ps1` |
+| UI (bonificación) | Flujos principales en el POS web: comanda → cocina → entrega, dividir cuenta, alerta de stock | La interfaz es otro adaptador: se prueba como la usa una persona | Selenium + Page Object Model | `mvn verify -Pui-tests` |
+| UX (bonificación) | Usabilidad del POS web | Hallazgos priorizados y mejoras verificadas | Evaluación heurística de Nielsen + protocolo SUS | [`ux/`](../ux/) |
 
 ---
 
 ## 6. Resultados de las pruebas
 
-Ver [`pruebas.md` §6](pruebas.md#6-resultados) (reportes de Surefire/Failsafe, cobertura JaCoCo y
-análisis de carga).
+Detalle, reportes y evidencia en [`pruebas.md` §6](pruebas.md#6-resultados),
+[`evidencias/`](evidencias/) y [`../perf/README.md`](../perf/README.md#6-resultados).
+
+| Qué | Resultado |
+|---|---|
+| Unitarias + regla de arquitectura (`mvn test`) | **165 / 165** pasan |
+| Integración y sistema (`mvn verify`) | **32 / 32** pasan |
+| UI con Selenium (`mvn verify -Pui-tests`) | **4 / 4** pasan |
+| Cobertura del núcleo (JaCoCo) | **96,8 % de líneas**, 87,6 % de ramas (mínimo del build: 80 %) |
+| Carga — flujo del mesero, 50 usuarios | 3.700–4.600 req/s, **p95 22–29 ms**, 0 % de errores, 0 ingredientes negativos → cumple |
+| Carga — analítica, ≈ 47.000 pedidos, 30 usuarios | sin caché: **caída** por memoria → con la mitigación: **p95 7,7 ms, 0 % errores** → cumple |
+| Carga — analítica, > 200.000 pedidos | **no escala**: un solo cálculo tarda ≈ 4,8 s o agota la memoria (límite declarado en §7) |
+
+**Cuello de botella y lo que ofrece la arquitectura.** El panel de analítica es O(n): materializa
+todo el historial del periodo. La hexagonal permitió mitigarlo sin tocar el dominio ni los
+controladores (filtro en SQL en el adaptador; caché con un solo cálculo a la vez en el caso de uso;
+H2 en archivo cambiando solo la configuración). La solución de fondo —un modelo de lectura con
+totales precalculados (CQRS)— entra como un puerto de lectura nuevo con su adaptador.
 
 ---
 
@@ -268,12 +303,14 @@ análisis de carga).
 |---|---|---|
 | Pedido e inventario no comparten una transacción. El caso de uso descuenta inventario y luego guarda el pedido; si el guardado falla, **compensa** devolviendo lo descontado. | Si el proceso muere justo entre las dos operaciones, queda stock descontado sin pedido (se detecta en el historial: SALIDA_VENTA de un pedido inexistente). | Un puerto de "unidad de trabajo" que abra una transacción compartida por ambos adaptadores. |
 | Los candados por pedido/mesa de `GestorPedidos` viven en memoria. | Correctos con una instancia; con varias instancias de la app detrás de un balanceador no protegen. (El inventario sí es seguro entre instancias: lo protege la base de datos.) | Bloqueo optimista con columna `version` en `pedido`. |
-| La analítica calcula sobre los pedidos del periodo en cada recálculo (O(n)). En la 1.ª prueba de carga, sin caché, 30 consultas simultáneas con decenas de miles de pedidos **tumbaron el servicio**. | Mitigado con filtro por fecha en SQL y caché de 3 s con un solo cálculo a la vez (el panel puede tener hasta 3 s de retraso). Con "TODO" y un historial muy grande, un recálculo sigue siendo costoso. | CQRS: un modelo de lectura con agregados por hora/plato actualizado al cerrar cada pedido. |
+| La analítica calcula sobre los pedidos del periodo en cada recálculo (O(n)). Sin caché, 30 consultas simultáneas con ≈ 47.000 pedidos **tumban el servicio** (`OutOfMemoryError`). | Mitigado con filtro por fecha en SQL y caché de 3 s con un solo cálculo a la vez: con ≈ 47.000 pedidos, p95 = 7,7 ms. **No resuelto** para historiales de más de 200.000 pedidos: un recálculo tarda ≈ 4,8 s (H2 en archivo) o agota el heap (H2 en memoria). | CQRS: un modelo de lectura con agregados por hora/plato/categoría actualizado al cerrar cada pedido (puerto de lectura nuevo). |
+| H2 en memoria comparte el heap con la aplicación. | Con cientos de miles de pedidos, los datos ocupan la memoria que necesitan los cálculos. | H2 en archivo (ya probado, `-BaseDatos archivo`) o PostgreSQL. |
+| El POS web consulta la API cada ~2,5 s (*polling*). | Con muchas pantallas abiertas genera carga constante sobre la API. | Empujar cambios con WebSocket o Server-Sent Events ([ADR-004](adr/ADR-004-interfaz-web-adaptador.md)). |
 | H2 embebido en memoria por defecto. | Al reiniciar se pierden los datos (existe la URL de archivo en `application.properties`). | Adaptador a PostgreSQL (mismo código JDBC) y prueba con Testcontainers como en el taller de integración. |
 | La división de cuenta es una consulta: no registra pagos. | No hay caja ni conciliación. | Módulo de pagos (fuera del alcance de los retos). |
 | Sin autenticación ni roles. | Cualquiera con acceso a la API puede ajustar inventario. | Spring Security / API key — parte de DevSecOps en el Corte 3. |
-| Pruebas de UI (Selenium/Cypress) no aplican directamente a Swing. | Sin bonificación de UI. | Pruebas de UI sobre un cliente web, o AssertJ-Swing. |
+| Las pruebas de UI cubren el POS web, no la ventana Swing. | Un cambio que rompa solo Swing no lo detectan las pruebas automáticas. | AssertJ-Swing para la ventana de escritorio. |
 
-**Corte 3:** el workflow `.github/workflows/ci.yml` ya corre `mvn verify` en cada push; falta
-agregar las pruebas de carga como etapa del pipeline, análisis estático y de dependencias
-(DevSecOps).
+**Corte 3:** el workflow `.github/workflows/ci.yml` ya corre `mvn verify` y las pruebas de UI en
+cada push; falta agregar las pruebas de carga como etapa del pipeline (con los SLO como compuerta),
+análisis estático y de dependencias, y autenticación (DevSecOps).

@@ -1,4 +1,4 @@
-{
+﻿{
     "name":  "hikaricp.connections.pending",
     "description":  "Pending threads",
     "baseUnit":  null,

@@ -1,14 +1,14 @@
 # Resultado analitica - escenario carga
 
-Fecha: 2026-09-28T17:40:05.791Z
+Fecha: 2026-10-05T00:53:41.835Z
 
 | Métrica | Valor |
 |---|---|
-| Peticiones totales | 536965 |
-| Throughput | 2983.1 req/s |
+| Peticiones totales | 463025 |
+| Throughput | 2572.3 req/s |
 | Tasa de error HTTP | 100.00 % |
-| Latencia p50 / p90 / p95 / máx | 0.0 / 0.0 / 0.0 / 5213.1 ms |
-| Duración promedio de iteración | 8.4 ms |
+| Latencia p50 / p90 / p95 / máx | 0.0 / 0.0 / 0.0 / 5333.0 ms |
+| Duración promedio de iteración | 9.7 ms |
 
 ## Latencia por endpoint (p95)
 

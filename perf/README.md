@@ -50,10 +50,12 @@ powershell -ExecutionPolicy Bypass -File perf\run-perf.ps1 -Escenarios baseline,
 ```bash
 CACHE=0 bash perf/run-perf.sh baseline carga
 CACHE=3 bash perf/run-perf.sh baseline carga
+ETIQUETA=volumen-medio CACHE=3 bash perf/run-perf.sh baseline
+BD=archivo CACHE=3 bash perf/run-perf.sh baseline carga
 ```
 
 Si el servicio se cae, el script lo detecta, muestra las últimas líneas del log y deja
-`perf/results/CAIDA-cacheN.txt`. Con `-XX:+ExitOnOutOfMemoryError` una falta de memoria queda
+`perf/results/CAIDA-<sufijo>.txt` con la causa (`OutOfMemoryError` o saturación). Con `-XX:+ExitOnOutOfMemoryError` una falta de memoria queda
 explícita en `app-err.log` en vez de dejar el proceso en un estado indefinido.
 
 **Manual:**
@@ -70,21 +72,20 @@ k6 run -e SCENARIO=carga    perf/scripts/analitica_k6.js
 `--orderflow.mesas=1000` hace falta porque cada VU atiende su propia mesa (regla de negocio:
 una comanda activa por mesa).
 
-## 5. Resultados
+**Archivos de resultados.** Cada ejecución deja en `results/`, con un sufijo por corrida (`-cache0`, `-cache3`,
+`-cache3-archivo`, `-cache3-volumen-medio`…):
 
-Cada ejecución deja en `results/` (con sufijo `-cache0` o `-cache3` para comparar antes y después):
+- `<script>-<escenario>-<sufijo>.md` – resumen: throughput, tasa de error, p50/p90/p95/máx, p95 por
+  endpoint contra su SLO y el estado de cada umbral.
+- `actuator-*-<sufijo>.json` – métricas del servidor (latencia por endpoint y conexiones del pool en espera).
+- `pedidos-<sufijo>.txt` y `CAIDA-<sufijo>.txt` – pedidos en la base antes de medir la analítica y, si
+  hubo caída, en qué paso y por qué.
+- `<script>-<escenario>.json` (sin sufijo) – el resumen completo de k6 de la última corrida.
 
-- `<script>-<escenario>.md` – resumen listo para pegar: throughput, tasa de error, p50/p90/p95/máx,
-  p95 por endpoint contra su SLO y el estado de cada umbral.
-- `<script>-<escenario>.json` – el resumen completo de k6.
-- `actuator-*.json` – métricas del servidor (latencia por endpoint y conexiones del pool en espera).
-
-El análisis de los resultados está en [`../docs/pruebas.md`](../docs/pruebas.md#4-pruebas-de-carga).
-
-## 6. Hipótesis de cuello de botella (escritas antes de medir)
+## 5. Hipótesis de cuello de botella (escritas antes de medir)
 
 1. **Analítica O(n):** `ServicioAnalitica` lee *todos* los pedidos con sus líneas en cada consulta.
-   Su p95 debería crecer con el historial. Mitigación que permite la arquitectura: CQRS (módulo 5),
+   Su costo debería crecer con el historial. Mitigación que permite la arquitectura: CQRS (módulo 5),
    un modelo de lectura con totales precalculados detrás del mismo puerto.
 2. **Candados de fila en ingredientes populares:** muchas recetas usan AZÚCAR, PAPA o HUEVO; los
    pedidos que los descuentan a la vez se esperan unos a otros (la transacción es la que protege el
@@ -92,24 +93,91 @@ El análisis de los resultados está en [`../docs/pruebas.md`](../docs/pruebas.m
 3. **Pool de conexiones:** Tomcat atiende hasta 200 hilos y el pool Hikari tiene 20 conexiones;
    en estrés debería aparecer espera por conexión (`hikaricp.connections.pending`).
 
-## 7. Hallazgo de la primera ejecución
+## 6. Resultados
 
-En la primera corrida completa (28/09/2026, portátil Windows, sin límite de memoria explícito y
-**sin caché** en la analítica), los pasos de analítica *antes* y de flujo de pedidos terminaron,
-pero en el paso 5 —30 usuarios consultando la analítica después de que la prueba de flujo había
-creado decenas de miles de pedidos— **el servicio dejó de responder a los ~174 s** (k6 reportó
-`connection refused` y superó los umbrales `checks` y `http_req_failed`).
+Todas las corridas: portátil Windows 11, Java 17, `-Xmx1g`, k6 en la misma máquina. Cada archivo
+`results/<script>-<escenario>-<sufijo>.md` tiene el detalle (p50/p90/p95/máx por endpoint y estado de
+cada umbral); `CAIDA-<sufijo>.txt` registra cada caída con su causa.
 
-Coincide con la **hipótesis 1** (causa probable; se confirma si `app-err.log` muestra `OutOfMemoryError`): cada consulta del panel traía a memoria todo el historial de
-pedidos con sus líneas, y 30 consultas simultáneas multiplicaban esa memoria.
+### 6.1 Flujo de pedidos (R1 + R2 + concurrencia) — tipos **baseline** y **carga**
 
-**Mitigación aplicada** (en `ServicioAnalitica` y el adaptador JDBC, sin tocar el dominio):
+| Corrida | Escenario | Throughput | p95 total | p95 crear / avanzar / dividir | Errores | Checks | SLO |
+|---|---|---|---|---|---|---|---|
+| sin caché (`cache0`) | baseline, 10 VUs | 3.189 req/s | 6,6 ms | 8,5 / 6,0 / 5,7 ms | 0 % | 100 % | ✅ cumple |
+| sin caché (`cache0`) | carga, 50 VUs | 4.432 req/s | 27,2 ms | 31,1 / 27,2 / 22,0 ms | 0 % | 100 % | ✅ cumple |
+| con caché (`cache3`) | baseline, 10 VUs | 3.797 req/s | 5,7 ms | 7,5 / 5,1 / 5,0 ms | 0 % | 100 % | ✅ cumple |
+| con caché (`cache3`) | carga, 50 VUs | 3.731 req/s | 29,3 ms | 45,6 / 23,6 / 20,8 ms | 0 % | 100 % | ✅ cumple |
+| con caché, H2 en archivo | carga, 50 VUs | 4.645 req/s | 22,2 ms | 25,9 / 21,4 / 20,1 ms | 0 % | 100 % | ✅ cumple |
 
-1. HOY y SEMANA se filtran en SQL (`PedidoRepositorio.listarCreadosDesde`, con índice por fecha).
-2. Caché por periodo con vigencia configurable (`orderflow.analitica.cache-segundos`, 3 s por
-   defecto) y **un solo cálculo a la vez**: los demás usuarios esperan y reciben el mismo
-   resultado. Lo prueban `ServicioAnaliticaTest.shouldComputeOnlyOnceUnderConcurrentRequests` (20
-   hilos, 1 lectura) y las pruebas de vigencia.
+Al final de **cada** corrida del flujo, el `teardown` de k6 reportó *"20 ingredientes, 0 con stock
+negativo"*: con más de un millón de peticiones concurrentes, la regla de R1 no se rompió. El check
+"la cuenta dividida cuadra al peso" (R2) quedó en 100 %.
 
-**Trade-off:** el panel puede mostrar datos con hasta 3 s de antigüedad; la UI ya refresca cada 2 s,
-así que en la práctica no se nota. La solución de fondo sigue siendo CQRS (totales precalculados).
+### 6.2 Analítica (R3) — antes y después de la mitigación
+
+| Corrida | Pedidos en la base | Usuarios | Throughput | p95 | Errores | Resultado |
+|---|---|---|---|---|---|---|
+| Panel con el historial de demo (sin caché) | ≈ 150 | 5 | 2.558 req/s | 3,3 ms | 0 % | ✅ cumple |
+| Panel con el historial de demo (con caché) | ≈ 150 | 5 | 4.736 req/s | 1,5 ms | 0 % | ✅ cumple |
+| **Volumen medio, sin caché** | 47.576 | 30 | — | — | 99,96 % | ❌ **caída** (`OutOfMemoryError`) |
+| **Volumen medio, con caché + candado único** | 47.096 | 30 | **6.035 req/s** | **7,7 ms** | **0 %** | ✅ **cumple** |
+| Estrés de historial, sin caché | 251.624 | 30 | — | — | 100 % | ❌ caída |
+| Estrés de historial, con caché | 225.330 | 30 | — | ≈ 4 s (7 respuestas) | 100 % | ❌ caída (`OutOfMemoryError`) |
+| Estrés de historial, con caché y H2 en archivo | 264.618 | 30 | 5 req/s | 5.056 ms | 99,7 % | ❌ sin caída por memoria, pero saturado: cada cálculo ≈ 4,8 s |
+
+*Volumen medio* = la base después del escenario baseline del flujo (≈ 47.000 pedidos, unos 8 meses
+de un restaurante con 200 pedidos al día). *Estrés de historial* = después del escenario de carga
+(≈ 225.000–265.000 pedidos, más de 3 años de operación). En las filas marcadas como caída, k6 muestra
+p95 = 0 ms en el resumen: no es una respuesta rápida, son conexiones rechazadas por un servidor caído.
+
+## 7. Análisis
+
+**El cuello de botella es la analítica (hipótesis 1, confirmada).** Para calcular el panel,
+`ServicioAnalitica` trae a memoria todos los pedidos del periodo con sus líneas y aplica las seis
+estrategias de reporte. Es O(n) en memoria y en tiempo.
+
+1. **Sin caché**, 30 usuarios disparan 30 cálculos simultáneos: 30 copias del historial en el heap.
+   Con 47.000 pedidos ya se agota 1 GB y la JVM termina con `OutOfMemoryError`.
+2. **Con caché de 3 s y un solo cálculo a la vez** (la mitigación), 29 de cada 30 consultas
+   reciben el resultado ya calculado. Con el mismo volumen se pasó de **caída** a **p95 = 7,7 ms y
+   0 % de errores**. La 2.ª corrida mostró que el candado tenía que ser **único** y no uno por
+   periodo: con todos los pedidos creados el mismo día, HOY, SEMANA y TODO son el mismo historial,
+   y tres cálculos simultáneos volvían a tumbar el servicio (`ServicioAnaliticaTest.shouldNeverComputeTwoPeriodsAtTheSameTime`).
+3. **Con más de 200.000 pedidos, un solo cálculo ya no cabe.** H2 en memoria guarda todas las filas
+   *en el mismo heap* que la aplicación, y un cálculo materializa otra copia completa. Cambiar solo la
+   configuración del adaptador a **H2 en archivo** (`-BaseDatos archivo`) eliminó el
+   `OutOfMemoryError`, pero el cálculo de 265.000 pedidos tarda ≈ 4,8 s: no cumple el SLO.
+
+**Hipótesis 2 (candados de fila en el inventario):** confirmada parcialmente. `crear_pedido` es el
+endpoint más lento del flujo en todas las corridas de carga (25,9–45,6 ms frente a 20–27 ms de los
+demás), pero queda muy por debajo del SLO de 500 ms.
+
+**Hipótesis 3 (pool de conexiones):** no se observó. `hikaricp.connections.pending` fue 0 al final de
+cada escenario (`actuator-hikari-pending-*.json`; es una lectura puntual, no descarta esperas breves).
+El flujo nunca superó 46 ms de p95 con 50 usuarios.
+
+**Qué ofrece la arquitectura para mitigarlo:**
+
+| Mitigación | Qué se tocó | Resultado |
+|---|---|---|
+| Filtro por fecha en SQL (HOY, SEMANA) | Puerto `PedidoRepositorio.listarCreadosDesde` + adaptador JDBC | Menos filas por consulta |
+| Caché de 3 s con un solo cálculo a la vez | Solo el caso de uso `ServicioAnalitica` | Volumen medio: de caída a p95 7,7 ms |
+| H2 en archivo | **Solo configuración** del adaptador (ADR-002) | Sin `OutOfMemoryError` a 265.000 pedidos |
+| *Pendiente:* CQRS, un modelo de lectura con totales por hora, plato y categoría que se actualiza al cerrar cada pedido | Un puerto de lectura nuevo y su adaptador; el dominio y los controladores no cambian | Costo O(1) por consulta, independiente del historial |
+
+Ninguna mitigación tocó el dominio ni los controladores: la hexagonal permitió atacar el problema en
+el caso de uso y en el adaptador de persistencia. **Lo que no se resolvió:** la analítica sobre todo el
+historial no escala a cientos de miles de pedidos; para eso falta el modelo de lectura (CQRS), que
+queda como trabajo del Corte 3 ([arquitectura.md §7](../docs/arquitectura.md#7-límites-conocidos-y-trabajo-para-el-corte-3)).
+
+**Trade-off de la caché:** el panel puede mostrar datos con hasta 3 s de antigüedad; la web y Swing
+refrescan cada 2–2,5 s, así que en la práctica no se nota.
+
+## 8. Historial de corridas
+
+1. **28/09 — primera corrida** (código sin mitigación, sin límite de memoria): el servicio dejó de
+   responder a los ~174 s del paso de analítica con decenas de miles de pedidos. Origen de la
+   mitigación.
+2. **28/09 — segunda corrida** (caché con un candado por periodo): flujo en verde, analítica con
+   ~199.000 pedidos caída por `OutOfMemoryError`. Origen del candado único.
+3. **04/10 — corridas finales** (código entregado): las de las tablas de la sección 6.

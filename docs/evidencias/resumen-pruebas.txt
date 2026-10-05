@@ -1,0 +1,32 @@
+Resumen de la ejecución de 'mvn clean verify -Pui-tests' (2026-10-04)
+
+== Unitarias (Surefire) ==
+aplicacion.casodeuso.GestorPedidosTest  Tests run: 24, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.637 s -- in com.restaurant.aplicacion.casodeuso.GestorPedidosTest
+aplicacion.casodeuso.ServicioAnaliticaTest  Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.699 s -- in com.restaurant.aplicacion.casodeuso.ServicioAnaliticaTest
+aplicacion.casodeuso.ServicioCuentaTest  Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.043 s -- in com.restaurant.aplicacion.casodeuso.ServicioCuentaTest
+aplicacion.casodeuso.ServicioInventarioTest  Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.285 s -- in com.restaurant.aplicacion.casodeuso.ServicioInventarioTest
+arquitectura.ReglasDeDependenciaTest  Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.074 s -- in com.restaurant.arquitectura.ReglasDeDependenciaTest
+dominio.cuenta.DivisionCuentaTest  Tests run: 17, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.113 s -- in com.restaurant.dominio.cuenta.DivisionCuentaTest
+dominio.cuenta.RepartidorPropiedadesTest  Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.241 s -- in com.restaurant.dominio.cuenta.RepartidorPropiedadesTest
+dominio.cuenta.RepartidorTest  Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.049 s -- in com.restaurant.dominio.cuenta.RepartidorTest
+dominio.estado.EstadosPedidoTest  Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.038 s -- in com.restaurant.dominio.estado.EstadosPedidoTest
+dominio.fabrica.PlatoFactoryTest  Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.166 s -- in com.restaurant.dominio.fabrica.PlatoFactoryTest
+dominio.inventario.IngredienteTest  Tests run: 17, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.083 s -- in com.restaurant.dominio.inventario.IngredienteTest
+dominio.inventario.RecetaYConsumoTest  Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.038 s -- in com.restaurant.dominio.inventario.RecetaYConsumoTest
+dominio.modelo.ItemPedidoTest  Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.055 s -- in com.restaurant.dominio.modelo.ItemPedidoTest
+dominio.modelo.PedidoTest  Tests run: 22, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.083 s -- in com.restaurant.dominio.modelo.PedidoTest
+dominio.reportes.ReportesTest  Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.039 s -- in com.restaurant.dominio.reportes.ReportesTest
+
+== Integración, sistema y UI (Failsafe) ==
+infraestructura.persistencia.InventarioRepositorioJdbcIT  Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.966 s -- in com.restaurant.infraestructura.persistencia.InventarioRepositorioJdbcIT
+infraestructura.persistencia.PedidoRepositorioJdbcIT  Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.249 s -- in com.restaurant.infraestructura.persistencia.PedidoRepositorioJdbcIT
+infraestructura.rest.ApiAnaliticaIT  Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 14.85 s -- in com.restaurant.infraestructura.rest.ApiAnaliticaIT
+infraestructura.rest.ApiDivisionCuentaIT  Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.400 s -- in com.restaurant.infraestructura.rest.ApiDivisionCuentaIT
+infraestructura.rest.ApiInventarioIT  Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.704 s -- in com.restaurant.infraestructura.rest.ApiInventarioIT
+infraestructura.rest.ApiPedidosIT  Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.529 s -- in com.restaurant.infraestructura.rest.ApiPedidosIT
+uitests.PosWebUiIT  Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 20.76 s -- in com.restaurant.uitests.PosWebUiIT
+
+[INFO] Tests run: 165, Failures: 0, Errors: 0, Skipped: 0
+[INFO] All coverage checks have been met.
+[INFO] Tests run: 36, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS

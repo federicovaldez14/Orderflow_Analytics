@@ -39,9 +39,13 @@ import java.util.Optional;
  * Mitigación aplicada (sin tocar el dominio):
  *   1. HOY y SEMANA se filtran en la base de datos (listarCreadosDesde).
  *   2. Caché corta por periodo ("vigencia", 3 s por defecto) con UN SOLO
- *      cálculo a la vez: si 30 usuarios piden el panel, uno lo calcula y los
- *      demás esperan y reciben ese mismo resultado. Un panel que se refresca
- *      cada 2 s en la UI tolera datos de hasta 3 s.
+ *      cálculo a la vez EN TODO EL SERVICIO: si 30 usuarios piden el panel,
+ *      uno lo calcula y los demás esperan y reciben ese mismo resultado. Un
+ *      panel que se refresca cada 2 s en la UI tolera datos de hasta 3 s.
+ *   3. El candado es único para los tres periodos (2.ª corrida de carga): con
+ *      un candado por periodo, HOY, SEMANA y TODO podían calcularse a la vez,
+ *      y con todos los pedidos creados el mismo día eran tres copias del
+ *      historial completo en memoria.
  * La solución de fondo es CQRS (módulo 5): un modelo de lectura con totales
  * precalculados detrás de un puerto. Ver docs/arquitectura.md §7.
  */
@@ -67,8 +71,8 @@ public class ServicioAnalitica {
             new ReportePedidosPorEstado(),
             new ReportePlatosMenosPedidos());
 
-    /** Un candado y una entrada de caché por periodo (HOY, SEMANA, TODO). */
-    private final Map<Periodo, Object> candados = new EnumMap<>(Periodo.class);
+    /** Un solo cálculo a la vez (para cualquier periodo) y una entrada de caché por periodo. */
+    private final Object candado = new Object();
     private final Map<Periodo, EnCache> cache = new EnumMap<>(Periodo.class);
 
     /** Sin caché: cada consulta recalcula (útil en pruebas y para medir el "antes"). */
@@ -83,9 +87,6 @@ public class ServicioAnalitica {
         this.pedidos = pedidos;
         this.reloj = reloj;
         this.vigencia = vigencia;
-        for (Periodo p : Periodo.values()) {
-            candados.put(p, new Object());
-        }
     }
 
     public PanelAnalitico panel(Periodo periodo) {
@@ -95,7 +96,7 @@ public class ServicioAnalitica {
         if (vigencia.isZero()) {
             return calcular(periodo);
         }
-        synchronized (candados.get(periodo)) {
+        synchronized (candado) {
             EnCache actual = cache.get(periodo);
             Instant ahora = reloj.instant();
             if (actual != null && ahora.isBefore(actual.calculadoEn().plus(vigencia))) {

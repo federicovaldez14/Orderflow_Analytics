@@ -1,19 +1,19 @@
-{
+﻿{
     "name":  "http.server.requests",
     "description":  "Duration of HTTP server request handling",
     "baseUnit":  "seconds",
     "measurements":  [
                          {
                              "statistic":  "COUNT",
-                             "value":  1209863.0
+                             "value":  1409984.0
                          },
                          {
                              "statistic":  "TOTAL_TIME",
-                             "value":  4214.9837345000005
+                             "value":  4058.9558131000003
                          },
                          {
                              "statistic":  "MAX",
-                             "value":  0.1850334
+                             "value":  0.2550536
                          }
                      ],
     "availableTags":  [
