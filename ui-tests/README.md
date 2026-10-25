@@ -5,7 +5,7 @@ H2 de pruebas:
 
 ```
 src/test/java/com/restaurant/uitests/
-├── PosWebUiIT.java          4 pruebas (3 flujos principales + 1 mejora de UX verificada)
+├── PosWebUiIT.java          4 pruebas (flujos principales del POS web)
 ├── Navegador.java           crea Edge / Chrome / Firefox (Selenium Manager descarga el driver)
 └── paginas/                 Page Object Model
     ├── PaginaBase.java      esperas explícitas (WebDriverWait), clic tolerante al repintado
@@ -20,7 +20,7 @@ src/test/java/com/restaurant/uitests/
 | `shouldTakeOrderAndDeliverItThroughKitchen` | Mesero toma la comanda de la mesa 3 → cocina la lleva de *Creado* a *Entregado* → la mesa queda libre |
 | `shouldSplitBillByConsumptionAndMatchTotal` | Dividir la cuenta por consumo con un plato compartido y 10 % de propina → la suma de las partes da exacto (R2) |
 | `shouldShowLowStockAlertAfterPhysicalCount` | Conteo físico del aguacate → alerta de stock bajo en la fila y en el menú (R1) |
-| `shouldKeepUnsentOrderWhenSwitchingTables` | Mejora de UX H5-1: cambiar de mesa no borra la comanda sin enviar |
+| `shouldKeepUnsentOrderWhenSwitchingTables` | Cambiar de mesa no borra la comanda que se estaba armando |
 
 **Cómo correrlas** (levantan la aplicación sola en un puerto aleatorio):
 

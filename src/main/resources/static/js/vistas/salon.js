@@ -11,7 +11,7 @@ const CATEGORIAS = [
 const estado = {
   mesas: [], pedidos: new Map(), menu: [], disponibilidad: {},
   mesaSel: null, ticket: new Map(), categoria: 'TODO', agregando: false,
-  // Comandas sin enviar de cada mesa (evaluación UX, hallazgo H5-1): cambiar de mesa no las borra.
+  // Comandas sin enviar de cada mesa: cambiar de mesa no las borra.
   borradores: new Map(),
   consumo: { id: null, lista: [] }, nombresIngredientes: {},
   firmaMesas: '', firmaPanel: '',
@@ -272,7 +272,7 @@ async function clicPanel(ev) {
     return pintarPanel();
   }
   if (t.dataset.quitar !== undefined) {
-    // Evaluación UX, hallazgo H3-1: quitar un plato ya enviado se confirma (antes era un clic sin vuelta atrás).
+    // Quitar un plato ya enviado se confirma (es un cambio sobre un pedido que la cocina ya recibió).
     const linea = p.lineas.find((l) => l.linea === Number(t.dataset.quitar));
     if (!await confirmar(`¿Quitar ${linea.cantidad}× ${linea.plato}?`,
       'Se quita del pedido y sus ingredientes vuelven al inventario si la cocina aún no empezó.', 'Quitar plato', true)) return;

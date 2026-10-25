@@ -132,7 +132,7 @@ Detalle en [`../ui-tests/README.md`](../ui-tests/README.md). Comando: `mvn verif
 | `shouldTakeOrderAndDeliverItThroughKitchen` | Mesero toma la comanda de la mesa 3 → la cocina la avanza Creado → En preparación → Listo → Entregado → la mesa queda libre | base, R0 |
 | `shouldSplitBillByConsumptionAndMatchTotal` | Dividir por consumo con un plato compartido y 10 % de propina: Ana $78.100 + Luis $17.600 = $95.700 | R2 |
 | `shouldShowLowStockAlertAfterPhysicalCount` | Conteo físico del aguacate (3 und) → alerta en la fila y contador en el menú | R1 |
-| `shouldKeepUnsentOrderWhenSwitchingTables` | Mejora de UX H5-1 verificada: cambiar de mesa no borra la comanda sin enviar | UX |
+| `shouldKeepUnsentOrderWhenSwitchingTables` | Cambiar de mesa no borra la comanda que se estaba armando (borrador por mesa) | base |
 
 - **Page Object Model:** `uitests/paginas/` (`PaginaSalon`, `PaginaCocina`, `PaginaInventario`,
   `DialogoDivision`); las pruebas no tienen selectores.
@@ -142,10 +142,6 @@ Detalle en [`../ui-tests/README.md`](../ui-tests/README.md). Comando: `mvn verif
   `data-estado`), no posiciones.
 - **Aisladas:** base limpia (`LimpiadorBD`) y página recargada desde cero antes de cada prueba.
 
-### 5.2 Evaluación de UX
-
-Evaluación heurística de Nielsen con severidad 0–4, 8 hallazgos priorizados y 4 mejoras aplicadas
-(la de mayor severidad verificada con la prueba de Selenium de arriba): [`../ux/`](../ux/).
 
 ---
 

@@ -83,7 +83,7 @@ export function abrirDivision(pedido) {
     const suma = s.porcentajes.reduce((a, b) => a + (Number(b) || 0), 0);
     el.textContent = suma === 100 ? 'Suman 100 %' : `Suman ${suma} % (deben sumar 100)`;
     el.className = `suma ${suma === 100 ? 'ok' : 'mal'}`;
-    // Evaluación UX, hallazgo H5-2: no se deja calcular hasta que los porcentajes sumen 100.
+    // No se deja calcular hasta que los porcentajes sumen 100.
     d.querySelector('#calcular').disabled = suma !== 100;
   }
 

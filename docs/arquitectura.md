@@ -37,8 +37,7 @@ sin concurrencia real.
 **Corte 2 (este entregable).** El mismo dominio, reorganizado en **arquitectura hexagonal**, con
 persistencia en H2, tres adaptadores de entrada sobre los mismos casos de uso (POS de escritorio
 Swing, API REST y POS web), los tres retos resueltos (inventario, división de cuenta, analítica con
-gráficas) y pruebas unitarias, de arquitectura, de integración, de sistema, de carga y de UI, más una
-evaluación heurística de UX.
+gráficas) y pruebas unitarias, de arquitectura, de integración, de sistema, de carga y de UI.
 
 ---
 
@@ -270,7 +269,6 @@ Resumen (el detalle, con cada clase de prueba y su propósito, está en [`prueba
 | Sistema (caja negra) | Flujos completos por HTTP: pedidos, inventario, división, analítica | Verifica todas las fronteras juntas, como un cliente | Spring Boot Test, TestRestTemplate | `mvn verify` |
 | Carga | Flujo del mesero y panel de analítica con muchos usuarios | SLO de los retos bajo concurrencia | k6 | `perf/run-perf.ps1` |
 | UI (bonificación) | Flujos principales en el POS web: comanda → cocina → entrega, dividir cuenta, alerta de stock | La interfaz es otro adaptador: se prueba como la usa una persona | Selenium + Page Object Model | `mvn verify -Pui-tests` |
-| UX (bonificación) | Usabilidad del POS web | Hallazgos priorizados y mejoras verificadas | Evaluación heurística de Nielsen + protocolo SUS | [`ux/`](../ux/) |
 
 ---
 

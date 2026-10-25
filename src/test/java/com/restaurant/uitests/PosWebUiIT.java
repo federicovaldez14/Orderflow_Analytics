@@ -152,7 +152,7 @@ class PosWebUiIT {
     }
 
     @Test
-    @DisplayName("Mejora UX verificada (H5-1) · Cambiar de mesa no borra la comanda que se estaba armando")
+    @DisplayName("Flujo 4 · Cambiar de mesa no borra la comanda que se estaba armando")
     void shouldKeepUnsentOrderWhenSwitchingTables() {
         // Arrange: el mesero empieza la comanda de la mesa 2
         PaginaSalon salon = new PaginaSalon(driver, url).abrir()

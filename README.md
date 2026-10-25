@@ -14,7 +14,7 @@ gráficas**. Corte 2 de Diseño y Arquitectura de Software: el sistema del Corte
 | [docs/evidencias/](docs/evidencias/) | Evidencia de ejecución: reportes de pruebas, cobertura JaCoCo y resultados de carga |
 | [perf/](perf/README.md) | Pruebas de carga: plan, SLO, scripts k6 y resultados (`perf/results/`) |
 | [docs/diagramas/](docs/diagramas/) | Diagrama de clases del núcleo y secuencia "tomar pedido con inventario" |
-| [ui-tests/](ui-tests/README.md) · [ux/](ux/README.md) | Bonificaciones: pruebas de UI con Selenium y evaluación de UX |
+| [ui-tests/](ui-tests/README.md) | Bonificación: pruebas de UI con Selenium |
 | [docs/docker.md](docs/docker.md) | Contenerización: Dockerfile multi-stage, `.dockerignore`, Docker Compose con volumen y `.env` |
 | [docs/corte1.md](docs/corte1.md) | Documento original del Corte 1 (SOLID y patrones) |
 
@@ -160,8 +160,7 @@ dentro de una instancia; H2 en memoria por defecto (comparte el heap con la apli
 
 | Bonificación | Qué se entrega | Cómo verlo |
 |---|---|---|
-| **Pruebas de UI** | 4 pruebas con **Selenium** sobre el POS web: comanda → cocina → entrega, dividir la cuenta por consumo, alerta de stock bajo y una mejora de UX verificada. **Page Object Model**, esperas explícitas, selectores por atributos de datos, base limpia por prueba; corren por comando y en el CI | [`ui-tests/README.md`](ui-tests/README.md) · `mvn verify -Pui-tests` |
-| **Evaluación de UX** | Evaluación heurística de **Nielsen** (5 tareas, severidad 0–4): 8 hallazgos priorizados, 4 mejoras aplicadas; la de mayor severidad (cambiar de mesa borraba la comanda) verificada con Selenium. Protocolo con tareas y cuestionario **SUS** listo para 3 usuarios | [`ux/`](ux/README.md) |
+| **Pruebas de UI** | 4 pruebas con **Selenium** sobre el POS web: comanda → cocina → entrega, dividir la cuenta por consumo, alerta de stock bajo y que cambiar de mesa no borre la comanda en curso. **Page Object Model**, esperas explícitas, selectores por atributos de datos, base limpia por prueba; corren por comando y en el CI | [`ui-tests/README.md`](ui-tests/README.md) · `mvn verify -Pui-tests` |
 
 ---
 
