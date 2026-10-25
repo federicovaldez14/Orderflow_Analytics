@@ -4,3 +4,8 @@
 *.ps1 text eol=crlf
 *.mp4 binary
 *.png binary
+# Archivos de Docker siempre con LF (un Dockerfile con CRLF puede romper las líneas con \)
+Dockerfile text eol=lf
+.dockerignore text eol=lf
+*.yml text eol=lf
+.env.example text eol=lf

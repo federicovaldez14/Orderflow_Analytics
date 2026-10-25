@@ -15,6 +15,7 @@ gráficas**. Corte 2 de Diseño y Arquitectura de Software: el sistema del Corte
 | [perf/](perf/README.md) | Pruebas de carga: plan, SLO, scripts k6 y resultados (`perf/results/`) |
 | [docs/diagramas/](docs/diagramas/) | Diagrama de clases del núcleo y secuencia "tomar pedido con inventario" |
 | [ui-tests/](ui-tests/README.md) · [ux/](ux/README.md) | Bonificaciones: pruebas de UI con Selenium y evaluación de UX |
+| [docs/docker.md](docs/docker.md) | Contenerización: Dockerfile multi-stage, `.dockerignore`, Docker Compose con volumen y `.env` |
 | [docs/corte1.md](docs/corte1.md) | Documento original del Corte 1 (SOLID y patrones) |
 
 ---
@@ -34,6 +35,13 @@ java -jar target/orderflow-analytics-2.0.0.jar
 
 # solo la web y la API, sin ventana (servidores, pruebas de carga)
 java -jar target/orderflow-analytics-2.0.0.jar --orderflow.ui.enabled=false
+```
+
+**Con Docker** (sin instalar Java ni Maven; detalle en [docs/docker.md](docs/docker.md)):
+
+```bash
+cp .env.example .env
+docker compose up -d --build     # imagen multi-stage; esperar "healthy" en: docker compose ps
 ```
 
 **Versión web:** con la aplicación corriendo, abre <http://localhost:8080> en el navegador (también

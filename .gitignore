@@ -8,3 +8,4 @@ perf/results/*.log
 .vscode/
 .jqwik-database
 perf/results/bd-perf/
+.env

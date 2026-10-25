@@ -1,0 +1,24 @@
+# Solo hacen falta pom.xml y src/ para construir la imagen.
+target/
+.git/
+.github/
+.idea/
+.vscode/
+.claude/
+*.iml
+*.md
+.env
+.env.*
+docker-compose*.yml
+Dockerfile
+.dockerignore
+
+# Carpetas del proyecto que no forman parte de la aplicación
+docs/
+perf/
+videos/
+ui-tests/
+ux/
+data/
+*.log
+.jqwik-database

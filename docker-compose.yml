@@ -1,0 +1,24 @@
+name: orderflow
+
+# La aplicación usa H2 embebida (ADR-002): no hay un contenedor de base de datos aparte.
+# Los datos se guardan en un archivo H2 dentro del volumen "datos-h2", así sobreviven a
+# reinicios del contenedor (docker compose down los conserva; down -v los borra).
+services:
+  app:
+    build: .
+    image: orderflow-analytics:dev
+    ports:
+      - "${PUERTO:-8080}:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:h2:file:/app/data/orderflow;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=10000
+      SPRING_DATASOURCE_USERNAME: ${BD_USUARIO:?Defina BD_USUARIO (ver .env.example)}
+      SPRING_DATASOURCE_PASSWORD: ${BD_CLAVE:?Defina BD_CLAVE (ver .env.example)}
+      ORDERFLOW_MESAS: ${ORDERFLOW_MESAS:-10}
+      ORDERFLOW_DEMO_HISTORICO: ${ORDERFLOW_DEMO_HISTORICO:-true}
+    volumes:
+      - datos-h2:/app/data
+    # El healthcheck viene del Dockerfile (GET /actuator/health/readiness).
+    restart: unless-stopped
+
+volumes:
+  datos-h2:
