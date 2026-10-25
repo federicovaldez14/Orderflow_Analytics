@@ -50,8 +50,10 @@ Sin variables, la app usa la base H2 en memoria de `application.properties`, as�
 - **Usuario sin privilegios.** La app corre como el usuario de sistema `app`, no como root; si alguien
   la compromete, tiene menos permisos dentro del contenedor.
 - **`HEALTHCHECK`** contra `/actuator/health/readiness` (se habilitó con
-  `management.endpoint.health.probes.enabled=true`). Docker marca el contenedor `healthy` solo
-  cuando Spring Boot terminó de arrancar y la base de datos responde.
+  `management.endpoint.health.probes.enabled=true`). Docker marca el contenedor `healthy` cuando
+  Spring Boot terminó de arrancar y está listo para recibir peticiones. A diferencia de
+  `/actuator/health`, el readiness no incluye la base de datos: si la base falla un momento, Docker no
+  reinicia la aplicación sin necesidad.
 - **Configuración por variables de entorno.** La URL, el usuario y la clave de la base llegan desde
   `.env` (`SPRING_DATASOURCE_URL` → `spring.datasource.url`); `${VAR:?mensaje}` hace obligatorias
   las credenciales. Ni el `.env` ni las claves terminan dentro de la imagen (`.dockerignore`).
