@@ -1,4 +1,4 @@
-# Documento de arquitectura — Orderflow Analytics (Corte 2)
+# Documento de arquitectura — Orderflow Analytics (Cortes 2 y 3)
 
 > Diseño y Arquitectura de Software (DYAS) · Universidad de La Sabana
 > Integrantes: Federico Valdez, Daniel Sanabria
@@ -12,6 +12,7 @@ Contenido
 5. [Estrategia de pruebas](#5-estrategia-de-pruebas)
 6. [Resultados de las pruebas](#6-resultados-de-las-pruebas)
 7. [Límites conocidos y trabajo para el Corte 3](#7-límites-conocidos-y-trabajo-para-el-corte-3)
+8. [Vista de despliegue (Corte 3)](#8-vista-de-despliegue-corte-3)
 
 ---
 
@@ -237,8 +238,9 @@ flowchart LR
 **Regla del estilo:** las flechas de dependencia apuntan hacia adentro. `dominio` no importa nada de
 `aplicacion` ni de `infraestructura` (ni Spring, JDBC o Swing); `aplicacion` no importa
 `infraestructura`. Lo verifica automáticamente
-[`ReglasDeDependenciaTest`](../src/test/java/com/restaurant/arquitectura/ReglasDeDependenciaTest.java):
-si alguien rompe la regla, el build falla. Spring solo aparece en `infraestructura` (y en
+[`ArquitecturaTest`](../src/test/java/com/restaurant/arquitectura/ArquitecturaTest.java) (8 reglas
+ArchUnit desde el Corte 3; en el Corte 2 era `ReglasDeDependenciaTest`): si alguien rompe la regla,
+el build y el pipeline fallan. Spring solo aparece en `infraestructura` (y en
 `OrderflowApplication`); el núcleo se construye con `new` en `ConfiguracionOrderflow`.
 
 ### 4.5 Correspondencia con el código
@@ -309,6 +311,61 @@ totales precalculados (CQRS)— entra como un puerto de lectura nuevo con su ada
 | Sin autenticación ni roles. | Cualquiera con acceso a la API puede ajustar inventario. | Spring Security / API key — parte de DevSecOps en el Corte 3. |
 | Las pruebas de UI cubren el POS web, no la ventana Swing. | Un cambio que rompa solo Swing no lo detectan las pruebas automáticas. | AssertJ-Swing para la ventana de escritorio. |
 
-**Corte 3:** el workflow `.github/workflows/ci.yml` ya corre `mvn verify` y las pruebas de UI en
-cada push; falta agregar las pruebas de carga como etapa del pipeline (con los SLO como compuerta),
-análisis estático y de dependencias, y autenticación (DevSecOps).
+**Corte 3:** cómo se resolvió cada uno de estos límites (o por qué sigue abierto) está en
+[evolucion.md §4](evolucion.md#4-pendientes-del-corte-2-y-cómo-se-resolvieron).
+
+---
+
+## 8. Vista de despliegue (Corte 3)
+
+Diagrama C4 de despliegue: dónde corre cada contenedor en **producción** y cómo se comunican. La
+decisión y las alternativas descartadas están en
+[ADR-005](adr/ADR-005-despliegue-render-neon-ghcr.md); el pipeline, en [devops.md](devops.md).
+
+```mermaid
+flowchart TB
+    subgraph cliente["Dispositivos del restaurante"]
+        nav["Navegador<br/><i>Edge / Chrome / Safari en PC, tablet o celular</i><br/>POS web (HTML + JS)"]
+        esc["POS de escritorio (opcional)<br/><i>Java 17 + Swing, .jar de GitHub Releases</i>"]
+    end
+    subgraph gh["GitHub (federicovaldez14/Orderflow_Analytics)"]
+        ga["GitHub Actions<br/><i>runners ubuntu-latest</i><br/>pipeline, versión, reversión, carga larga"]
+        ghcr[("GHCR<br/>ghcr.io/federicovaldez14/orderflow-analytics<br/>:sha-&lt;commit&gt; · :vX.Y.Z")]
+        rel[("GitHub Releases<br/>orderflow-analytics-X.Y.Z.jar")]
+    end
+    subgraph render["Render — región Oregon (us-west), plan Free"]
+        subgraph svc["Web Service orderflow-analytics (contenedor Docker, usuario app)"]
+            app["Orderflow Analytics<br/><i>Spring Boot 3.5 + Java 17, puerto 8080</i><br/>API REST · POS web · Actuator"]
+        end
+        tls["Proxy TLS de Render<br/><i>https://&lt;servicio&gt;.onrender.com</i>"]
+    end
+    subgraph neon["Neon — AWS us-west-2 (Oregon), plan Free"]
+        pg[("PostgreSQL 18<br/>base neondb<br/>pedidos, inventario, movimientos, usuarios")]
+    end
+    nav -- "HTTPS 443<br/>JSON + cookie de sesión" --> tls
+    tls -- "HTTP 8080 (red interna)" --> app
+    app -- "JDBC 5432 + TLS<br/>HikariCP (5 conexiones)" --> pg
+    esc -. "JDBC + TLS (si se configura<br/>la misma base)" .-> pg
+    ga -- "docker push" --> ghcr
+    ga -- "POST deploy hook (imgURL)" --> render
+    ghcr -- "docker pull" --> svc
+    ga -- "humo + k6 (HTTPS)" --> tls
+    ga -- "sube el .jar" --> rel
+    rel -. "descarga" .-> esc
+```
+
+| Nodo | Qué corre | Recursos | Comunicación |
+|---|---|---|---|
+| Render Web Service | Imagen `orderflow-analytics:sha-<commit>` (Spring Boot, POS web y API en un solo proceso, [ADR-004](adr/ADR-004-interfaz-web-adaptador.md)) | 512 MB RAM, 0,1 CPU; se suspende tras 15 min sin tráfico | Entra: HTTPS desde Internet (TLS termina en Render). Sale: JDBC + TLS a Neon |
+| Neon PostgreSQL | PostgreSQL 18.7, base `neondb` | 0,25 CU, 0,5 GB de almacenamiento | Solo acepta conexiones TLS con usuario y contraseña |
+| GHCR | Imágenes por commit y por versión | — | Render descarga la imagen (paquete público) |
+| GitHub Actions | Pipeline | Runners de GitHub | Llama al deploy hook (secreto) y prueba el entorno por HTTPS |
+
+**Local (desarrollo y demostración):** `docker compose up` levanta la misma imagen con PostgreSQL 18
+en contenedores separados (red interna de Compose, la base sin puertos publicados); con
+`--profile observabilidad` agrega Prometheus y Grafana con el tablero del SLO
+([docker.md](docker.md)).
+
+**Diferencias con el Corte 2:** H2 en memoria dentro del mismo proceso → PostgreSQL gestionado en un
+contenedor/servicio aparte (los datos sobreviven a reinicios y no compiten por el heap); el sistema
+deja de correr en el computador de un integrante y se despliega solo desde el pipeline.

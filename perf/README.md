@@ -62,11 +62,11 @@ explícita en `app-err.log` en vez de dejar el proceso en un estado indefinido.
 
 ```bash
 mvn -DskipTests package
-java -jar target/orderflow-analytics-2.0.0.jar --orderflow.ui.enabled=false --orderflow.mesas=1000
-# en otra terminal, desde la raíz del repo:
-k6 run -e SCENARIO=baseline perf/scripts/flujo_pedidos_k6.js
-k6 run -e SCENARIO=carga    perf/scripts/flujo_pedidos_k6.js
-k6 run -e SCENARIO=carga    perf/scripts/analitica_k6.js
+java -jar target/orderflow-analytics-*.jar --orderflow.ui.enabled=false --orderflow.mesas=1000 --orderflow.seguridad.admin-clave=clave-local-carga-123
+# en otra terminal, desde la raíz del repo (desde el Corte 3 k6 inicia sesión con esa clave):
+k6 run -e SCENARIO=baseline -e ORDERFLOW_CLAVE=clave-local-carga-123 perf/scripts/flujo_pedidos_k6.js
+k6 run -e SCENARIO=carga    -e ORDERFLOW_CLAVE=clave-local-carga-123 perf/scripts/flujo_pedidos_k6.js
+k6 run -e SCENARIO=carga    -e ORDERFLOW_CLAVE=clave-local-carga-123 perf/scripts/analitica_k6.js
 ```
 
 `--orderflow.mesas=1000` hace falta porque cada VU atiende su propia mesa (regla de negocio:

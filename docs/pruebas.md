@@ -1,4 +1,4 @@
-# Estrategia y resultados de pruebas — Corte 2
+# Estrategia y resultados de pruebas — Cortes 2 y 3
 
 Todas las pruebas se ejecutan con un comando documentado:
 
@@ -13,6 +13,26 @@ Todas las pruebas se ejecutan con un comando documentado:
 Convención (igual que en los talleres): las clases `*Test` son unitarias y las corre Surefire en
 `mvn test`; las clases `*IT` son de integración y las corre Failsafe en `mvn verify`. Las `*UiIT`
 necesitan un navegador y solo corren con el perfil `ui-tests`.
+
+## Actualización del Corte 3: las pruebas en el pipeline
+
+Desde el Corte 3 todas estas pruebas corren solas en cada pull request y cada push a `main`, cada
+nivel como una etapa que detiene el pipeline ([devops.md §3](devops.md#3-etapas-umbrales-y-por-qué)).
+Lo que cambió respecto a las secciones de abajo, que documentan el Corte 2:
+
+| Nivel | Corte 2 | Corte 3 | Qué se agregó | Etapa del pipeline |
+|---|---|---|---|---|
+| Unitarias | 162 | **164** | `FiltroAuditoriaTest` (2): la auditoría no admite inyección en el log (CWE-117) | 2 · Pruebas unitarias y cobertura |
+| Reglas de arquitectura | 3 (`ReglasDeDependenciaTest`) | **8** (`ArquitecturaTest`, ArchUnit) | Reemplaza a la anterior: R1–R7 de la hexagonal y R8 de seguridad ([devops.md §4](devops.md#4-reglas-de-arquitectura)) | 4 · Reglas de arquitectura |
+| Integración | 14 (H2) | **16** | `PostgresAdaptadoresIT` (2): los adaptadores JDBC contra **PostgreSQL 18 real** con Testcontainers, incluida la concurrencia del inventario (40 hilos, 10 huevos → 10 ventas, stock 0) | 3 · Pruebas de integración |
+| Sistema (HTTP) | 18 | **25** | `SeguridadIT` (7): 401 sin sesión, clave errada, 403 por rol (inventario, analítica, cocina), métricas protegidas, CSRF obligatorio, validación de usuarios. Las demás pruebas de sistema inician sesión | 3 · Pruebas de integración |
+| UI (Selenium) | 4 | **5** | Inicio de sesión: clave errada y cocina que solo ve sus pantallas | 5 · Pruebas de UI |
+| Humo (k6) | — | **10 checks** | `perf/scripts/humo_k6.js`: el flujo principal contra el entorno desplegado | 8 · Despliegue y verificación |
+| Carga (k6) | manual | escenario `despliegue` (5 VUs, 45 s) después de cada despliegue; baseline semanal | Los umbrales del SLO ya estaban como `thresholds`; ahora detienen el pipeline | 8 · Despliegue · Carga larga |
+| **Total JUnit** | **201** | **218** | 172 en `mvn test` + 41 de integración y sistema + 5 de UI | |
+
+Cobertura de líneas del núcleo (dominio + aplicación) en la ejecución del 15/11/2026: **96,8 %**
+(790 de 816); el build falla por debajo de **80 %**.
 
 ---
 
@@ -58,7 +78,7 @@ flowchart TB
 | `aplicacion/casodeuso/ServicioInventarioTest` (12) | R1 | Qué se descuenta y con qué motivo (captor), alerta solo al cruzar el mínimo, devolución vs merma, reposición, ajuste por conteo | Mocks de `InventarioRepositorio`, `AlertaInventario`; `ArgumentCaptor` |
 | `aplicacion/casodeuso/ServicioCuentaTest` (3) | R2 | Pedido existente, inexistente, cancelado | Mock de `PedidoRepositorio` |
 | `aplicacion/casodeuso/ServicioAnaliticaTest` (8) | R3 | Panel completo, filtro por periodo en SQL, reporte por id, **caché: vigencia (límite exacto 3 s), 20 usuarios simultáneos → 1 solo cálculo, y 15 usuarios pidiendo HOY/SEMANA/TODO → nunca 2 cálculos a la vez** | Mock de `PedidoRepositorio` + stubs lentos hechos a mano |
-| `arquitectura/ReglasDeDependenciaTest` (3) | estilo | `dominio` y `aplicacion` no importan infraestructura, Spring, JDBC ni Swing | – |
+| `arquitectura/ReglasDeDependenciaTest` (3) | estilo | `dominio` y `aplicacion` no importan infraestructura, Spring, JDBC ni Swing. *En el Corte 3 la reemplazó `ArquitecturaTest` con 8 reglas* | – |
 
 **Total: 165 pruebas unitarias** (las parametrizadas cuentan cada caso). Todas siguen **AAA**
 (comentarios `// Arrange`, `// Act`, `// Assert` en las que no son de una línea) y usan
