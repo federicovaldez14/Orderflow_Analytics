@@ -2,7 +2,7 @@
 
 [![Pipeline](https://github.com/federicovaldez14/Orderflow_Analytics/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/federicovaldez14/Orderflow_Analytics/actions/workflows/ci.yml)
 
-**Sistema desplegado:** {{URL_DESPLIEGUE}} · usuarios con rol (pida las credenciales de demostración al grupo)
+**Sistema desplegado:** <https://orderflow-analytics-sha.onrender.com> (plan gratuito de Render: si estuvo inactivo, la primera carga tarda ≈ 1 min) · usuarios con rol (pida las credenciales de demostración al grupo)
 
 Sistema de gestión de pedidos para un restaurante: mapa de mesas, flujo de comandas con cocina y
 mesero, **inventario de ingredientes con trazabilidad**, **división de la cuenta** y **analítica con
