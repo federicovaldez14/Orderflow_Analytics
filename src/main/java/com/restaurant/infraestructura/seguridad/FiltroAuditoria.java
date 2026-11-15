@@ -30,10 +30,18 @@ class FiltroAuditoria extends OncePerRequestFilter {
             if (cambiaDatos(req.getMethod()) && req.getRequestURI().startsWith("/api/")) {
                 Authentication auth = SecurityContextHolder.getContext().getAuthentication();
                 String usuario = auth == null || !auth.isAuthenticated() ? "anonimo" : auth.getName();
-                AUDITORIA.info("usuario={} {} {} -> {}", usuario, req.getMethod(),
-                        req.getRequestURI().replaceAll("[\r\n]", "_"), res.getStatus());
+                AUDITORIA.info("usuario={} {} {} -> {}", sinSaltos(usuario), sinSaltos(req.getMethod()),
+                        sinSaltos(req.getRequestURI()), res.getStatus());
             }
         }
+    }
+
+    /**
+     * Evita la inyección en el log (CWE-117, hallazgo de CodeQL): quien controle el usuario o
+     * la ruta no puede partir la línea para fabricar entradas de auditoría falsas.
+     */
+    static String sinSaltos(String valor) {
+        return valor == null ? "" : valor.replace('\n', '_').replace('\r', '_');
     }
 
     private static boolean cambiaDatos(String metodo) {
