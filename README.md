@@ -185,7 +185,7 @@ Resultados detallados de las pruebas del Corte 2 (carga, concurrencia, cobertura
 
 | Bonificación | Qué se entrega | Cómo verlo |
 |---|---|---|
-| **Observabilidad (Corte 3)** | La aplicación expone métricas Prometheus (`/actuator/prometheus`, protegido con un usuario `MONITOR`). Prometheus las recolecta y Grafana trae un tablero provisionado con las métricas del SLO: **latencia p95** contra la línea de 500 ms, **tasa de error 5xx** contra el 1 %, **throughput** por endpoint, conexiones a la base y memoria | `docker compose --profile observabilidad up -d` → <http://localhost:3000> · [observabilidad/](observabilidad/) |
+| **Observabilidad (Corte 3)** | La aplicación expone métricas Prometheus (`/actuator/prometheus`, protegido con un usuario `MONITOR`). Prometheus las recolecta y Grafana trae un tablero provisionado con las métricas del SLO: **latencia p95** contra la línea de 500 ms, **tasa de error 5xx** contra el 1 %, **throughput** por endpoint, conexiones a la base y memoria | `docker compose --profile observabilidad up -d` → <http://localhost:3000> · [observabilidad/](observabilidad/) · [captura del tablero](docs/evidencias/observabilidad/grafana-slo.png) |
 | **Pruebas de UI (Corte 2)** | 5 pruebas con Selenium sobre el POS web (Page Object Model), incluido el inicio de sesión por rol; corren en la etapa 5 del pipeline | [`ui-tests/README.md`](ui-tests/README.md) · `mvn verify -Pui-tests` |
 
 ---

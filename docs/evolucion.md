@@ -73,7 +73,7 @@ y del propio README del Corte 2.
 | P12 | **Las pruebas de UI no cubren la ventana Swing** | **Abierto** | La ventana de escritorio no se despliega en el servidor (el contenedor corre sin interfaz); el cliente de escritorio se publica como `.jar` en Releases | — |
 | P13 | **La división de cuenta no registra pagos** | Fuera de alcance | Es un módulo de negocio nuevo y el corte no pide funcionalidades nuevas | — |
 
-**Retroalimentación del Corte 2:** *(se completa con las observaciones del profesor)*
+**Retroalimentación del Corte 2:** el profesor no dejó observaciones escritas sobre la entrega. Por eso los pendientes de esta tabla salen de nuestra propia revisión (lo que el Corte 2 documentó como límite o deuda) y de lo que exige el Corte 3.
 
 ## 5. Qué decisiones se mantuvieron y cuáles cambiaron
 
