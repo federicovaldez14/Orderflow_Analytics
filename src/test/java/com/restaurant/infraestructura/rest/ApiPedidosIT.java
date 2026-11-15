@@ -1,6 +1,7 @@
 package com.restaurant.infraestructura.rest;
 
 import com.restaurant.infraestructura.config.DatosIniciales;
+import com.restaurant.soporte.Credenciales;
 import com.restaurant.soporte.LimpiadorBD;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -29,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * (LimpiadorBD), así no dependen del orden de ejecución.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        properties = {"orderflow.ui.enabled=false", "orderflow.demo.historico=false", "orderflow.analitica.cache-segundos=0",
+        properties = {Credenciales.PROPIEDAD_CLAVE_ADMIN, "orderflow.ui.enabled=false", "orderflow.demo.historico=false", "orderflow.analitica.cache-segundos=0",
                 "spring.datasource.url=jdbc:h2:mem:api_pedidos_it;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=10000"})
 class ApiPedidosIT {
 
@@ -45,6 +46,7 @@ class ApiPedidosIT {
     @BeforeEach
     void limpiar() {
         LimpiadorBD.limpiar(dataSource, datosIniciales);
+        rest = rest.withBasicAuth(Credenciales.ADMIN, Credenciales.CLAVE_ADMIN);
     }
 
     @Test

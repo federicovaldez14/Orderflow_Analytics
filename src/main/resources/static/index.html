@@ -19,25 +19,25 @@
         <span class="marca-texto">Orderflow<small>POS</small></span>
       </a>
       <nav class="nav" id="nav">
-        <a href="#/salon" data-vista="salon">
+        <a href="#/salon" data-vista="salon" data-roles="ADMIN MESERO">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>
           <span>Salón</span>
         </a>
-        <a href="#/cocina" data-vista="cocina">
+        <a href="#/cocina" data-vista="cocina" data-roles="ADMIN MESERO COCINA">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 13.9A4 4 0 0 1 7.5 6a5 5 0 0 1 9 0A4 4 0 0 1 18 13.9V20H6z"/><path d="M6 17h12"/></svg>
           <span>Cocina</span>
           <b class="insignia" id="insignia-cocina" hidden></b>
         </a>
-        <a href="#/inventario" data-vista="inventario">
+        <a href="#/inventario" data-vista="inventario" data-roles="ADMIN">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg>
           <span>Inventario</span>
           <b class="insignia alerta" id="insignia-inventario" hidden></b>
         </a>
-        <a href="#/analitica" data-vista="analitica">
+        <a href="#/analitica" data-vista="analitica" data-roles="ADMIN">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
           <span>Analítica</span>
         </a>
-        <a href="#/actividad" data-vista="actividad">
+        <a href="#/actividad" data-vista="actividad" data-roles="ADMIN MESERO COCINA">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
           <span>Actividad</span>
         </a>
@@ -45,10 +45,30 @@
       <div class="rail-pie">
         <div class="reloj" id="reloj">--:--</div>
         <div class="conexion" id="conexion"><i></i><span>Conectando…</span></div>
+        <div class="usuario-actual" id="usuario-actual" hidden>
+          <span><b id="usuario-nombre"></b><small id="usuario-rol"></small></span>
+          <button class="btn btn-fantasma btn-icono" id="cerrar-sesion" type="button" aria-label="Cerrar sesión" title="Cerrar sesión">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+          </button>
+        </div>
       </div>
     </aside>
 
     <main class="contenido" id="contenido" tabindex="-1"></main>
+  </div>
+
+  <div class="pantalla-login" id="pantalla-login" hidden>
+    <form class="tarjeta caja-login" id="form-login" autocomplete="on">
+      <img src="img/logo.svg" alt="" width="44" height="44">
+      <h1>Orderflow POS</h1>
+      <p class="secundario">Inicie sesión con su usuario del restaurante.</p>
+      <div class="campo"><label for="login-usuario">Usuario</label>
+        <input class="entrada" id="login-usuario" name="usuario" autocomplete="username" required></div>
+      <div class="campo"><label for="login-clave">Clave</label>
+        <input class="entrada" id="login-clave" name="clave" type="password" autocomplete="current-password" required></div>
+      <p class="error-login" id="login-error" role="alert" hidden></p>
+      <button class="btn btn-primario btn-bloque" id="login-entrar" type="submit">Entrar</button>
+    </form>
   </div>
 
   <div class="toasts" id="toasts" role="status" aria-live="polite"></div>

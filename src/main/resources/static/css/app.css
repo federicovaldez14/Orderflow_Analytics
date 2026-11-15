@@ -443,3 +443,16 @@ dialog::backdrop { background: rgba(5, 5, 6, .66); backdrop-filter: blur(3px); }
   .mesa-num { font-size: 30px; }
   .toasts { top: auto; bottom: 80px; right: 16px; width: calc(100vw - 32px); }
 }
+
+/* ---------- Sesión ---------- */
+
+.usuario-actual { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--borde); }
+.usuario-actual b { display: block; font-size: 13px; }
+.usuario-actual small { display: block; font-size: 11px; font-weight: 700; letter-spacing: .1em; color: var(--acento); }
+.nav a.oculto-por-rol { display: none; }
+
+.pantalla-login { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 16px; background: radial-gradient(circle at 30% 20%, rgba(224, 112, 60, .12), transparent 55%), var(--fondo); }
+.caja-login { width: min(380px, 100%); padding: 28px; display: grid; gap: 14px; }
+.caja-login h1 { margin: 6px 0 0; font: 700 26px/1.1 var(--fuente-display); letter-spacing: -.02em; }
+.caja-login p { margin: 0; }
+.error-login { padding: 10px 12px; border-radius: var(--radio-sm); background: var(--peligro-suave); color: #ff8a82; font-size: 13px; font-weight: 600; }
