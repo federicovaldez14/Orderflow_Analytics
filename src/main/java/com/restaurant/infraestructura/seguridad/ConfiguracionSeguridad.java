@@ -57,7 +57,7 @@ public class ConfiguracionSeguridad {
             .authorizeHttpRequests(auth -> auth
                 // Archivos de la web y salud para los healthchecks: públicos (no contienen datos)
                 .requestMatchers(HttpMethod.GET, "/", "/index.html", "/css/**", "/js/**", "/img/**", "/favicon.ico").permitAll()
-                .requestMatchers("/actuator/health", "/actuator/health/liveness", "/actuator/health/readiness").permitAll()
+                .requestMatchers("/actuator/health", "/actuator/health/liveness", "/actuator/health/readiness", "/actuator/info").permitAll()
                 .requestMatchers("/actuator/prometheus").hasAnyRole(MONITOR, ADMIN)
                 .requestMatchers("/actuator/**").hasRole(ADMIN)
                 .requestMatchers("/error").permitAll()

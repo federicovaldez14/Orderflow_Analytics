@@ -82,4 +82,20 @@ class ArquitecturaTest {
             slices().matching("com.restaurant.(*)..")
                     .should().beFreeOfCycles()
                     .because("las dependencias entre dominio, aplicación e infraestructura van en un solo sentido");
+
+    /**
+     * Control compensatorio del riesgo aceptado en .trivyignore (docs/seguridad.md, H-07):
+     * CVE-2026-47884 (XsltView) y CVE-2026-47890 (SSE con vistas) de Spring Framework 6.2 no
+     * tienen parche en la rama 6.2 y solo afectan a quien usa esas piezas. Si alguien empieza a
+     * usarlas, esta regla rompe el build y la aceptación del riesgo deja de ser válida.
+     */
+    @ArchTest
+    static final ArchRule R8_no_se_usan_las_piezas_de_spring_con_cve_aceptadas =
+            noClasses().should().dependOnClassesThat().resideInAnyPackage(
+                            "org.springframework.web.servlet.view.xslt..")
+                    .orShould().dependOnClassesThat().haveFullyQualifiedName(
+                            "org.springframework.web.servlet.mvc.method.annotation.SseEmitter")
+                    .orShould().dependOnClassesThat().haveFullyQualifiedName(
+                            "org.springframework.web.servlet.ModelAndView")
+                    .because("ADR-006: el riesgo de CVE-2026-47884/47890 se aceptó porque la API es JSON pura, sin vistas XSLT ni SSE");
 }

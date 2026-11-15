@@ -32,6 +32,37 @@
         <type>pom</type>
         <scope>import</scope>
       </dependency>
+      <!-- Parches de seguridad sobre lo que trae Spring Boot 3.5 (ya sin soporte gratuito):
+           Tomcat 10.1.62 y Jackson 2.21.8 corrigen CVE críticas y altas que el control de
+           dependencias (Trivy) detecta. Se importan antes para que ganen. Ver docs/seguridad.md. -->
+      <dependency>
+        <groupId>com.fasterxml.jackson</groupId>
+        <artifactId>jackson-bom</artifactId>
+        <version>2.21.8</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.tomcat.embed</groupId>
+        <artifactId>tomcat-embed-core</artifactId>
+        <version>10.1.62</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.tomcat.embed</groupId>
+        <artifactId>tomcat-embed-el</artifactId>
+        <version>10.1.62</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.tomcat.embed</groupId>
+        <artifactId>tomcat-embed-websocket</artifactId>
+        <version>10.1.62</version>
+      </dependency>
+      <!-- pgjdbc 42.7.14 corrige CVE-2026-54291 (HIGH, degradación de SCRAM-SHA-256-PLUS) -->
+      <dependency>
+        <groupId>org.postgresql</groupId>
+        <artifactId>postgresql</artifactId>
+        <version>42.7.14</version>
+      </dependency>
       <!-- Testcontainers 2.x: compatible con Docker Engine 29 (pruebas contra PostgreSQL real) -->
       <dependency>
         <groupId>org.testcontainers</groupId>

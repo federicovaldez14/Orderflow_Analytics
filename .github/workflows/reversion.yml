@@ -1,0 +1,58 @@
+# Reversión: vuelve a desplegar en Render la imagen de una versión anterior y la
+# verifica con la prueba de humo. Se lanza a mano desde Actions -> Reversión ->
+# Run workflow, indicando el tag (por ejemplo v3.0.0). Procedimiento: docs/devops.md.
+name: Reversión
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Versión a la que se vuelve (tag existente, por ejemplo v3.0.0)"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: despliegue-produccion
+  cancel-in-progress: false
+
+env:
+  IMAGEN: ghcr.io/${{ github.repository_owner }}/orderflow-analytics
+  K6: grafana/k6:2.4.0
+
+jobs:
+  revertir:
+    name: Volver a ${{ inputs.version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: produccion
+      url: ${{ vars.URL_DESPLIEGUE }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Commit de la versión
+        id: version
+        run: |
+          [[ "${{ inputs.version }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::Use un tag semántico, por ejemplo v3.0.0"; exit 1; }
+          sha=$(git rev-list -n 1 "${{ inputs.version }}")
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "imagen=$(echo "$IMAGEN" | tr '[:upper:]' '[:lower:]'):${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+      - name: Desplegar la imagen de la versión anterior
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+          URL_DESPLIEGUE: ${{ vars.URL_DESPLIEGUE }}
+        run: .github/scripts/desplegar.sh "${{ steps.version.outputs.imagen }}" "${{ steps.version.outputs.sha }}"
+      - name: Prueba de humo
+        run: >
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/w" -w /w -e BASE_URL="${{ vars.URL_DESPLIEGUE }}"
+          -e ORDERFLOW_USUARIO=admin -e ORDERFLOW_CLAVE="${{ secrets.ORDERFLOW_ADMIN_CLAVE }}"
+          $K6 run --quiet perf/scripts/humo_k6.js
+      - name: Publicar reporte
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-reversion
+          path: perf/results/humo.md

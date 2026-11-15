@@ -1,0 +1,48 @@
+# Prueba de carga larga contra el entorno desplegado (no corre en cada push):
+# manual desde Actions -> Carga larga -> Run workflow, o cada lunes a las 6:00 (Colombia).
+# Usa los mismos umbrales del SLO del Corte 2 (thresholds de los scripts k6).
+name: Carga larga
+
+on:
+  workflow_dispatch:
+    inputs:
+      escenario:
+        description: "Escenario del flujo de pedidos (baseline = 10 VUs durante 1 min)"
+        required: true
+        default: baseline
+        type: choice
+        options: [baseline]
+  schedule:
+    - cron: "0 11 * * 1"
+
+permissions:
+  contents: read
+
+env:
+  K6: grafana/k6:2.4.0
+
+jobs:
+  carga:
+    name: Carga ${{ inputs.escenario || 'baseline' }} contra producción
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Flujo de pedidos (Retos 1 y 2)
+        run: >
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/w" -w /w -e BASE_URL="${{ vars.URL_DESPLIEGUE }}"
+          -e SCENARIO="${{ inputs.escenario || 'baseline' }}"
+          -e ORDERFLOW_USUARIO=admin -e ORDERFLOW_CLAVE="${{ secrets.ORDERFLOW_ADMIN_CLAVE }}"
+          $K6 run --quiet perf/scripts/flujo_pedidos_k6.js
+      - name: Panel de analítica (Reto 3)
+        if: always()
+        run: >
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/w" -w /w -e BASE_URL="${{ vars.URL_DESPLIEGUE }}"
+          -e SCENARIO=baseline -e ORDERFLOW_USUARIO=admin -e ORDERFLOW_CLAVE="${{ secrets.ORDERFLOW_ADMIN_CLAVE }}"
+          $K6 run --quiet perf/scripts/analitica_k6.js
+      - name: Publicar reportes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-carga-larga
+          path: perf/results/*-baseline.*
