@@ -1,6 +1,6 @@
 import http from 'k6/http';
 import { check } from 'k6';
-import { BASE_URL, SCENARIO, resumen } from './comun.js';
+import { BASE_URL, SCENARIO, iniciarSesion, esperarServicio, resumen } from './comun.js';
 
 /**
  * PRUEBA DE CARGA - Reto 3 (analítica).
@@ -14,9 +14,9 @@ import { BASE_URL, SCENARIO, resumen } from './comun.js';
  *   - p95 GET /api/analitica  <= 500 ms
  *   - errores HTTP            <  1 %
  *
- * Ejecución:
- *   k6 run -e SCENARIO=baseline perf/scripts/analitica_k6.js
- *   k6 run -e SCENARIO=carga    perf/scripts/analitica_k6.js
+ * Ejecución (ORDERFLOW_CLAVE = clave del administrador):
+ *   k6 run -e SCENARIO=baseline -e ORDERFLOW_CLAVE=<clave-admin> perf/scripts/analitica_k6.js
+ *   k6 run -e SCENARIO=carga    -e ORDERFLOW_CLAVE=<clave-admin> perf/scripts/analitica_k6.js
  * Para ver el efecto del historial, córrala antes y después de
  * flujo_pedidos_k6.js (que agrega miles de pedidos).
  */
@@ -32,6 +32,8 @@ const ESCENARIOS = {
 const SLO = [['analitica_panel', 500]];
 
 export const options = {
+  // La sesión (cookies) se conserva entre iteraciones: cada VU inicia sesión una sola vez
+  noCookiesReset: true,
   scenarios: { run: ESCENARIOS[SCENARIO] || ESCENARIOS.baseline },
   thresholds: {
     http_req_failed: ['rate<0.01'],
@@ -42,7 +44,17 @@ export const options = {
 
 const PERIODOS = ['HOY', 'SEMANA', 'TODO'];
 
+let conSesion = false;   // por VU
+
+export function setup() {
+  esperarServicio();
+}
+
 export default function () {
+  if (!conSesion) {
+    iniciarSesion();   // la analítica es solo para el administrador
+    conSesion = true;
+  }
   const periodo = PERIODOS[Math.floor(Math.random() * PERIODOS.length)];
   const r = http.get(`${BASE_URL}/api/analitica?periodo=${periodo}`, { tags: { name: 'analitica_panel' }, timeout: '5s' });
   check(r, {

@@ -16,6 +16,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfException;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 
@@ -87,8 +88,10 @@ public class ConfiguracionSeguridad {
             .httpBasic(basic -> basic.authenticationEntryPoint(sin401Basico))
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint(sin401Basico)
-                .accessDeniedHandler((req, res, e) ->
-                        escribirError(res, HttpStatus.FORBIDDEN, "Su rol no permite esta acción")))
+                .accessDeniedHandler((req, res, e) -> escribirError(res, HttpStatus.FORBIDDEN,
+                        e instanceof CsrfException
+                                ? "Falta el token de seguridad o la sesión venció; recargue la página"
+                                : "Su rol no permite esta acción")))
             .csrf(csrf -> csrf
                 .csrfTokenRepository(repositorioCsrf())
                 .csrfTokenRequestHandler(new ManejadorCsrfWeb())

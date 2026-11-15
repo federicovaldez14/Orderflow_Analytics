@@ -21,7 +21,9 @@ import java.util.Base64;
 /**
  * Crea las tablas de usuarios (esquema estándar de Spring Security, igual en
  * H2 y PostgreSQL) y, si todavía no hay ningún usuario, el primer administrador
- * con las variables ORDERFLOW_ADMIN_USUARIO y ORDERFLOW_ADMIN_CLAVE.
+ * con las variables ORDERFLOW_ADMIN_USUARIO y ORDERFLOW_ADMIN_CLAVE. Si están
+ * ORDERFLOW_MONITOR_USUARIO y ORDERFLOW_MONITOR_CLAVE, crea además el usuario
+ * con el que Prometheus lee /actuator/prometheus.
  *
  * No hay claves en el código: si ORDERFLOW_ADMIN_CLAVE no está definida (por
  * ejemplo, al correr en local con mvn spring-boot:run) se genera una clave
@@ -39,21 +41,28 @@ public class UsuariosIniciales implements ApplicationRunner {
     private final PasswordEncoder codificador;
     private final String adminUsuario;
     private final String adminClave;
+    private final String monitorUsuario;
+    private final String monitorClave;
 
     public UsuariosIniciales(DataSource dataSource, JdbcUserDetailsManager usuarios, PasswordEncoder codificador,
                              @Value("${orderflow.seguridad.admin-usuario:admin}") String adminUsuario,
-                             @Value("${orderflow.seguridad.admin-clave:}") String adminClave) {
+                             @Value("${orderflow.seguridad.admin-clave:}") String adminClave,
+                             @Value("${orderflow.seguridad.monitor-usuario:}") String monitorUsuario,
+                             @Value("${orderflow.seguridad.monitor-clave:}") String monitorClave) {
         this.dataSource = dataSource;
         this.usuarios = usuarios;
         this.codificador = codificador;
         this.adminUsuario = adminUsuario;
         this.adminClave = adminClave;
+        this.monitorUsuario = monitorUsuario;
+        this.monitorClave = monitorClave;
     }
 
     @Override
     public void run(ApplicationArguments args) {
         crearEsquema();
-        if (hayUsuarios()) {
+        crearMonitorSiSeConfiguro();
+        if (hayUsuariosAdministradores()) {
             return;
         }
         String clave = adminClave;
@@ -88,9 +97,24 @@ public class UsuariosIniciales implements ApplicationRunner {
         }
     }
 
-    private boolean hayUsuarios() {
+    private void crearMonitorSiSeConfiguro() {
+        if (monitorUsuario.isBlank() || monitorClave.isBlank() || usuarios.userExists(monitorUsuario)) {
+            return;
+        }
+        if (monitorClave.length() < LONGITUD_MINIMA_CLAVE) {
+            throw new IllegalStateException("ORDERFLOW_MONITOR_CLAVE debe tener al menos "
+                    + LONGITUD_MINIMA_CLAVE + " caracteres");
+        }
+        usuarios.createUser(User.withUsername(monitorUsuario)
+                .password(codificador.encode(monitorClave))
+                .roles(Rol.MONITOR.name())
+                .build());
+        LOG.info("Usuario de monitoreo '{}' creado", monitorUsuario);
+    }
+
+    private boolean hayUsuariosAdministradores() {
         try (Connection con = dataSource.getConnection(); Statement st = con.createStatement();
-             var rs = st.executeQuery("SELECT COUNT(*) FROM users")) {
+             var rs = st.executeQuery("SELECT COUNT(*) FROM authorities WHERE authority = 'ROLE_ADMIN'")) {
             rs.next();
             return rs.getLong(1) > 0;
         } catch (SQLException e) {
