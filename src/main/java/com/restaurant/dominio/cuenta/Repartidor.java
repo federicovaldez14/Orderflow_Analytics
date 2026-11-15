@@ -46,8 +46,8 @@ public final class Repartidor {
             residuos.add(producto % sumaPesos);
             asignado += parte;
         }
-        long sobrante = total - asignado;   // siempre < número de partes
-        final long suma = sumaPesos;
+        // Siempre < número de partes (cabe en int); toIntExact falla en vez de dar un bucle infinito
+        int sobrante = Math.toIntExact(total - asignado);
         List<Integer> orden = IntStream.range(0, pesos.size()).boxed()
                 .sorted(Comparator.comparingLong((Integer i) -> residuos.get(i)).reversed()
                         .thenComparingInt(i -> i))

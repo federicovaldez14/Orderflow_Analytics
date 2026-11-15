@@ -1,15 +1,17 @@
 # Pipeline de integración y despliegue continuos de Orderflow Analytics.
 #
-# Corre en cada push y en cada pull request. Cada job es un check del pull
-# request y puede detener el pipeline; la protección de main exige que todos
-# estén en verde para fusionar. En main, además, publica la imagen en GHCR y la
-# despliega en Render, y verifica el despliegue con una prueba de humo y una
-# prueba de carga corta contra el SLO. Detalle: docs/devops.md.
+# Corre en cada pull request hacia main y en cada push a main (al fusionar).
+# Los push a otras ramas no lo disparan para no duplicar la corrida del pull
+# request. Cada job es un check del pull request y puede detener el pipeline;
+# la protección de main exige que todos estén en verde para fusionar. En main,
+# además, publica la imagen en GHCR y la despliega en Render, y verifica el
+# despliegue con una prueba de humo y una prueba de carga corta contra el SLO.
+# Detalle: docs/devops.md.
 name: Pipeline
 
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
