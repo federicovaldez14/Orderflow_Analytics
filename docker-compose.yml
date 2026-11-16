@@ -74,7 +74,7 @@ services:
 
   grafana:
     profiles: ["observabilidad"]
-    image: grafana/grafana:13.2.6
+    image: grafana/grafana:13.3.1
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_USUARIO:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_CLAVE:?Defina GRAFANA_CLAVE (ver .env.example)}
