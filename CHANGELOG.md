@@ -8,6 +8,14 @@ Todos los cambios relevantes de Orderflow Analytics. Formato basado en
 Desde la 3.0.0 cada versión tiene un tag `vX.Y.Z`, un GitHub Release con el `.jar` y la imagen
 `ghcr.io/federicovaldez14/orderflow-analytics:vX.Y.Z` (ver [docs/devops.md](docs/devops.md)).
 
+## [3.0.1] - 2026-11-16
+
+### Corregido
+- Dependabot proponía pasar las imágenes de Java 17 a Java 24 y 26 (versiones no LTS que no se han
+  probado con el sistema). Ahora ignora los cambios de versión de Java; el JDK se actualiza a mano.
+- La prueba de UI del flujo de cocina fallaba a veces en CI: leía el total del panel mientras el POS
+  lo volvía a dibujar. Ahora usa el valor que vio durante la espera.
+
 ## [3.0.0] - 2026-11-15
 
 Corte 3: entrega continua y segura. Sin funcionalidades de negocio nuevas.

@@ -14,6 +14,12 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # El sistema se construye y prueba con Java 17 (LTS). Un salto de versión de Java no es una
+    # actualización de rutina: se decide aparte (con su ADR) y se cambia a mano en las dos imágenes.
+    ignore:
+      - dependency-name: eclipse-temurin
+        versions: [">= 18"]
+      - dependency-name: maven
   - package-ecosystem: docker-compose
     directory: /
     schedule:
