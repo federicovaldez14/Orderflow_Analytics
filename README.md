@@ -3,6 +3,7 @@
 [![Pipeline](https://github.com/federicovaldez14/Orderflow_Analytics/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/federicovaldez14/Orderflow_Analytics/actions/workflows/ci.yml)
 
 **Sistema desplegado:** <https://orderflow-analytics-sha.onrender.com> (plan gratuito de Render: si estuvo inactivo, la primera carga tarda ≈ 1 min) · usuarios con rol (pida las credenciales de demostración al grupo)
+
 **Versiones:** [v3.0.0 y v3.0.1](https://github.com/federicovaldez14/Orderflow_Analytics/releases) (tag, `.jar` e imagen `ghcr.io/federicovaldez14/orderflow-analytics:vX.Y.Z`; historial en [CHANGELOG.md](CHANGELOG.md))
 
 Sistema de gestión de pedidos para un restaurante: mapa de mesas, flujo de comandas con cocina y
