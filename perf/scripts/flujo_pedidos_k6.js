@@ -32,10 +32,11 @@ import { BASE_URL, SCENARIO, basico, sesionJson, iniciarSesion, esperarServicio,
 
 const ESCENARIOS = {
   // Prueba corta contra el entorno desplegado (pipeline de despliegue), mismos umbrales del SLO.
-  // Representa la hora pico del restaurante con margen: 2 meseros que registran un pedido completo
-  // (crear, avanzar hasta entregado y dividir la cuenta) cada ~3 s, unos 40 pedidos por minuto, cuando
-  // 10 mesas generan menos de 1 por minuto. La capacidad máxima se mide aparte (carga, estrés, pico).
-  despliegue: { executor: 'constant-vus', vus: 2, duration: '60s', startTime: '20s', pausaMs: 3000 },
+  // Representa la hora pico del restaurante con mucho margen: un flujo continuo que registra un pedido
+  // completo (crear, avanzar hasta entregado y dividir la cuenta) cada ~2 s, unos 30 pedidos por
+  // minuto, cuando 10 mesas generan menos de 1 por minuto. La capacidad máxima se mide aparte (carga,
+  // estrés, pico); el plan gratuito de Render tiene 0,1 CPU y no está dimensionado para esas pruebas.
+  despliegue: { executor: 'constant-vus', vus: 1, duration: '90s', startTime: '20s', pausaMs: 1500 },
   baseline: { executor: 'constant-vus', vus: 10, duration: '1m' },
   carga: {
     executor: 'ramping-vus', startVUs: 0, gracefulRampDown: '20s',
