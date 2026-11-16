@@ -14,7 +14,7 @@ RUN --mount=type=cache,target=/root/.m2 mvn -B -ntp -q package -Dmaven.test.skip
  && cp target/orderflow-analytics-*.jar /app.jar
 
 # ---------- Etapa 2: imagen final solo con el JRE 17 y el .jar ----------
-FROM eclipse-temurin:17.0.21_9-jre-noble
+FROM eclipse-temurin:24.0.2_12-jre-noble
 
 # Usuario sin privilegios; /app/data guarda la base H2 (se monta como volumen en Compose).
 RUN groupadd --system app && useradd --system --gid app --no-create-home app \
