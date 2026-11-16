@@ -1,0 +1,11 @@
+# Configuración de CodeQL (SAST). Se analiza el código propio, no las pruebas:
+# las pruebas usan credenciales de ejemplo a propósito y no llegan a la imagen.
+# Ninguna regla está deshabilitada; si alguna vez se excluye una, se justifica
+# en docs/seguridad.md.
+name: Orderflow CodeQL
+paths:
+  - src/main
+paths-ignore:
+  - src/test
+  - perf
+  - observabilidad

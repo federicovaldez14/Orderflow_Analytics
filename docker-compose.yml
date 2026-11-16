@@ -1,24 +1,100 @@
 name: orderflow
 
-# La aplicación usa H2 embebida (ADR-002): no hay un contenedor de base de datos aparte.
-# Los datos se guardan en un archivo H2 dentro del volumen "datos-h2", así sobreviven a
-# reinicios del contenedor (docker compose down los conserva; down -v los borra).
+# Sistema completo con un solo comando:
+#   cp .env.example .env      (y cambiar las claves)
+#   docker compose up -d --build
+# Con observabilidad (Prometheus + Grafana):
+#   docker compose --profile observabilidad up -d --build
+
 services:
+  db:
+    image: postgres:18.7-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-orderflow}
+      POSTGRES_USER: ${POSTGRES_USER:?Defina POSTGRES_USER (ver .env.example)}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD (ver .env.example)}
+    volumes:
+      - datos-db:/var/lib/postgresql
+    # Sin "ports": la base solo es accesible dentro de la red de Compose.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
   app:
     build: .
     image: orderflow-analytics:dev
     ports:
       - "${PUERTO:-8080}:8080"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:h2:file:/app/data/orderflow;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=10000
-      SPRING_DATASOURCE_USERNAME: ${BD_USUARIO:?Defina BD_USUARIO (ver .env.example)}
-      SPRING_DATASOURCE_PASSWORD: ${BD_CLAVE:?Defina BD_CLAVE (ver .env.example)}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-orderflow}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?Defina POSTGRES_USER (ver .env.example)}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD (ver .env.example)}
+      ORDERFLOW_ADMIN_USUARIO: ${ORDERFLOW_ADMIN_USUARIO:-admin}
+      ORDERFLOW_ADMIN_CLAVE: ${ORDERFLOW_ADMIN_CLAVE:?Defina ORDERFLOW_ADMIN_CLAVE (ver .env.example)}
+      ORDERFLOW_MONITOR_USUARIO: ${ORDERFLOW_MONITOR_USUARIO:-}
+      ORDERFLOW_MONITOR_CLAVE: ${ORDERFLOW_MONITOR_CLAVE:-}
       ORDERFLOW_MESAS: ${ORDERFLOW_MESAS:-10}
       ORDERFLOW_DEMO_HISTORICO: ${ORDERFLOW_DEMO_HISTORICO:-true}
-    volumes:
-      - datos-h2:/app/data
-    # El healthcheck viene del Dockerfile (GET /actuator/health/readiness).
+    depends_on:
+      db:
+        condition: service_healthy
+    # El HEALTHCHECK viene del Dockerfile (GET /actuator/health/readiness).
+    # Endurecimiento: solo lectura (Tomcat escribe en /tmp), sin capacidades de Linux,
+    # sin escalar privilegios y con límite de memoria.
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 768m
     restart: unless-stopped
 
+  prometheus:
+    profiles: ["observabilidad"]
+    image: prom/prometheus:v3.16.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=7d
+    volumes:
+      - ./observabilidad/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - datos-prometheus:/prometheus
+    secrets:
+      - clave_monitor
+    ports:
+      - "127.0.0.1:9090:9090"
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+
+  grafana:
+    profiles: ["observabilidad"]
+    image: grafana/grafana:13.2.6
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USUARIO:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_CLAVE:?Defina GRAFANA_CLAVE (ver .env.example)}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./observabilidad/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observabilidad/grafana/tableros:/var/lib/grafana/tableros:ro
+      - datos-grafana:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+secrets:
+  # La clave del usuario de monitoreo llega desde .env; Prometheus la lee como archivo.
+  clave_monitor:
+    environment: ORDERFLOW_MONITOR_CLAVE
+
 volumes:
-  datos-h2:
+  datos-db:
+  datos-prometheus:
+  datos-grafana:

@@ -1,50 +1,298 @@
-# Integración continua: en cada push o pull request compila y corre las
-# pruebas unitarias y de integración (mvn verify). Es la base del pipeline
-# del Corte 3.
-name: CI
+# Pipeline de integración y despliegue continuos de Orderflow Analytics.
+#
+# Corre en cada pull request hacia main y en cada push a main (al fusionar).
+# Los push a otras ramas no lo disparan para no duplicar la corrida del pull
+# request. Cada job es un check del pull request y puede detener el pipeline;
+# la protección de main exige que todos estén en verde para fusionar. En main,
+# además, publica la imagen en GHCR y la despliega en Render, y verifica el
+# despliegue con una prueba de humo y una prueba de carga corta contra el SLO.
+# Detalle: docs/devops.md.
+name: Pipeline
 
 on:
   push:
+    branches: [main]
   pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pipeline-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  MAVEN_OPTS: -Xmx2g
+  MVN: mvn -B -ntp
+  IMAGEN: ghcr.io/${{ github.repository_owner }}/orderflow-analytics
+  TRIVY: aquasec/trivy:0.76.2
+  GITLEAKS: zricethezav/gitleaks:v8.30.1
+  K6: grafana/k6:2.4.0
 
 jobs:
-  verificar:
+  construccion:
+    name: 1 · Construcción
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-          cache: maven
-      - name: Pruebas unitarias + integración + cobertura
-        run: mvn -B verify
+        with: { distribution: temurin, java-version: "17", cache: maven }
+      - name: Compilar código y pruebas (resuelve todas las dependencias)
+        run: $MVN test-compile
+
+  unitarias:
+    name: 2 · Pruebas unitarias y cobertura
+    needs: construccion
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17", cache: maven }
+      - name: Pruebas unitarias + umbral de cobertura del núcleo (JaCoCo, líneas >= 80 %)
+        run: $MVN test -Dtest='!ArquitecturaTest' -Dsurefire.failIfNoSpecifiedTests=false
       - name: Publicar reportes de pruebas y cobertura
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: reportes-pruebas
+          name: reporte-unitarias-y-cobertura
           path: |
             target/surefire-reports/
-            target/failsafe-reports/
             target/site/jacoco/
 
-  # Pruebas de UI (Selenium) sobre el POS web: Chrome sin ventana, que ya viene
-  # instalado en ubuntu-latest. Selenium Manager descarga el driver.
-  pruebas-ui:
+  integracion:
+    name: 3 · Pruebas de integración
+    needs: construccion
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-          cache: maven
-      - name: Pruebas de UI (Selenium + Page Object Model)
-        run: mvn -B verify -Pui-tests -Dit.test=PosWebUiIT -Dui.navegador=chrome
-      - name: Publicar reporte de las pruebas de UI
+        with: { distribution: temurin, java-version: "17", cache: maven }
+      - name: Integración (H2 y PostgreSQL con Testcontainers) y sistema por HTTP
+        run: $MVN verify -Dtest=NingunaUnitaria -Dsurefire.failIfNoSpecifiedTests=false -Djacoco.skip=true
+      - name: Publicar reportes
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: reportes-pruebas-ui
+          name: reporte-integracion
           path: target/failsafe-reports/
+
+  arquitectura:
+    name: 4 · Reglas de arquitectura
+    needs: construccion
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17", cache: maven }
+      - name: Funciones de aptitud de la hexagonal (ArchUnit, ADR-001)
+        run: $MVN test -Dtest=ArquitecturaTest -Djacoco.skip=true
+      - name: Publicar reporte
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-arquitectura
+          path: target/surefire-reports/
+
+  ui:
+    name: 5 · Pruebas de UI (Selenium)
+    needs: construccion
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17", cache: maven }
+      - name: Flujos del POS web con Chrome sin ventana (Page Object Model)
+        run: >
+          $MVN verify -Pui-tests -Dit.test=PosWebUiIT -Dtest=NingunaUnitaria
+          -Dsurefire.failIfNoSpecifiedTests=false -Djacoco.skip=true -Dui.navegador=chrome
+      - name: Publicar reporte
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-ui
+          path: target/failsafe-reports/
+
+  sast:
+    name: 6a · SAST (CodeQL ${{ matrix.lenguaje }})
+    needs: construccion
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - lenguaje: java-kotlin
+            modo: manual
+          - lenguaje: javascript-typescript
+            modo: none
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        if: matrix.lenguaje == 'java-kotlin'
+        with: { distribution: temurin, java-version: "17", cache: maven }
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.lenguaje }}
+          build-mode: ${{ matrix.modo }}
+          queries: security-extended
+          config-file: ./.github/codeql/codeql-config.yml
+      - name: Compilar para el análisis
+        if: matrix.modo == 'manual'
+        run: $MVN -DskipTests package
+      - name: Analizar
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:${{ matrix.lenguaje }}
+          output: resultados-codeql
+      - name: Quality gate (ningún hallazgo alto o crítico, security-severity >= 7.0)
+        run: python3 .github/scripts/umbral_sarif.py resultados-codeql 7.0
+      - name: Publicar reporte
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-sast-${{ matrix.lenguaje }}
+          path: resultados-codeql/
+
+  sca:
+    name: 6b · SCA (dependencias, Trivy)
+    needs: construccion
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17", cache: maven }
+      - name: Resolver dependencias en el caché local (Trivy lo lee sin consultar Maven Central)
+        run: $MVN -q -Pui-tests dependency:go-offline
+      - name: Reporte completo (informativo)
+        if: always()
+        run: >
+          docker run --rm -v "$PWD:/repo" -v "$HOME/.m2:/root/.m2:ro" $TRIVY fs --scanners vuln
+          --format table --output /repo/trivy-dependencias.txt /repo/pom.xml
+      - name: Quality gate (ninguna vulnerabilidad alta o crítica con corrección disponible)
+        run: >
+          docker run --rm -v "$PWD:/repo" -v "$HOME/.m2:/root/.m2:ro" $TRIVY fs --scanners vuln
+          --severity HIGH,CRITICAL --ignore-unfixed --ignorefile /repo/.trivyignore --exit-code 1 /repo/pom.xml
+      - name: Publicar reporte
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-sca
+          path: trivy-dependencias.txt
+
+  secretos:
+    name: 6c · Secretos (Gitleaks, todo el historial)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Quality gate (cero secretos en el código y en todo el historial de Git)
+        run: >
+          docker run --rm -v "$PWD:/repo" $GITLEAKS git /repo --redact --no-banner
+          --report-format sarif --report-path /repo/gitleaks.sarif --exit-code 1
+      - name: Publicar reporte
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-secretos
+          path: gitleaks.sarif
+
+  imagen:
+    name: 7 · Imagen y escaneo (Trivy)
+    needs: [unitarias, integracion, arquitectura]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      imagen: ${{ steps.datos.outputs.imagen }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Nombre de la imagen (etiquetada con el SHA del commit, nunca solo latest)
+        id: datos
+        run: |
+          imagen="$(echo "$IMAGEN" | tr '[:upper:]' '[:lower:]'):sha-${GITHUB_SHA}"
+          echo "imagen=$imagen" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - name: Construir la imagen (multi-stage, versión = SHA)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: ${{ steps.datos.outputs.imagen }}
+          build-args: VERSION=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Reporte completo (informativo)
+        if: always()
+        run: >
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD:/repo" $TRIVY image
+          --scanners vuln --format table --output /repo/trivy-imagen.txt ${{ steps.datos.outputs.imagen }}
+      - name: Quality gate (ninguna vulnerabilidad crítica con corrección disponible)
+        run: >
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD:/repo" $TRIVY image
+          --scanners vuln --severity CRITICAL --ignore-unfixed --ignorefile /repo/.trivyignore --exit-code 1
+          ${{ steps.datos.outputs.imagen }}
+      - name: Publicar reporte
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-imagen
+          path: trivy-imagen.txt
+      - name: Publicar en GitHub Container Registry (solo main)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker push "${{ steps.datos.outputs.imagen }}"
+
+  desplegar:
+    name: 8 · Despliegue y verificación
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [imagen, ui, sast, sca, secretos]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: despliegue-produccion
+      cancel-in-progress: false
+    environment:
+      name: produccion
+      url: ${{ vars.URL_DESPLIEGUE }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Desplegar la imagen en Render y esperar a que responda la versión nueva
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+          URL_DESPLIEGUE: ${{ vars.URL_DESPLIEGUE }}
+        run: .github/scripts/desplegar.sh "${{ needs.imagen.outputs.imagen }}" "${{ github.sha }}"
+      - name: Prueba de humo (flujo principal contra el entorno desplegado)
+        run: >
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/w" -w /w -e BASE_URL="${{ vars.URL_DESPLIEGUE }}"
+          -e ORDERFLOW_USUARIO=admin -e ORDERFLOW_CLAVE="${{ secrets.ORDERFLOW_ADMIN_CLAVE }}"
+          $K6 run --quiet perf/scripts/humo_k6.js
+      - name: Prueba de carga corta contra el SLO del Corte 2
+        run: >
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/w" -w /w -e BASE_URL="${{ vars.URL_DESPLIEGUE }}" -e SCENARIO=despliegue
+          -e ORDERFLOW_USUARIO=admin -e ORDERFLOW_CLAVE="${{ secrets.ORDERFLOW_ADMIN_CLAVE }}"
+          $K6 run --quiet perf/scripts/flujo_pedidos_k6.js
+      - name: Publicar reporte de humo y carga
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-despliegue
+          path: |
+            perf/results/humo.md
+            perf/results/flujo-pedidos-despliegue.md
+            perf/results/flujo-pedidos-despliegue.json

@@ -22,7 +22,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Adaptador de salida: guarda pedidos en H2 con JDBC plano (como el
+ * Adaptador de salida: guarda pedidos en H2 o PostgreSQL con JDBC plano (como el
  * RegistryRepository de los talleres), pero sobre un DataSource con pool
  * (HikariCP) en vez de DriverManager: en el taller de carga abrir una
  * conexión por operación fue el cuello de botella (defecto PERF-01).
@@ -37,10 +37,24 @@ public class PedidoRepositorioJdbc implements PedidoRepositorio {
 
     private final DataSource dataSource;
     private final Clock reloj;
+    /** Única sentencia que no es igual en los dos motores: cómo pedir el siguiente valor de la secuencia. */
+    private String sqlSiguienteId;
 
     public PedidoRepositorioJdbc(DataSource dataSource, Clock reloj) {
         this.dataSource = dataSource;
         this.reloj = reloj;
+    }
+
+    private String sqlSiguienteId() {
+        if (sqlSiguienteId == null) {
+            try (Connection con = dataSource.getConnection()) {
+                boolean postgres = con.getMetaData().getDatabaseProductName().toLowerCase().contains("postgres");
+                sqlSiguienteId = postgres ? "SELECT nextval('seq_pedido')" : "SELECT NEXT VALUE FOR seq_pedido";
+            } catch (SQLException e) {
+                throw new ErrorPersistenciaException("No se pudo identificar el motor de base de datos", e);
+            }
+        }
+        return sqlSiguienteId;
     }
 
     public void initSchema() {
@@ -79,7 +93,7 @@ public class PedidoRepositorioJdbc implements PedidoRepositorio {
     public int siguienteId() {
         try (Connection con = dataSource.getConnection();
              Statement st = con.createStatement();
-             ResultSet rs = st.executeQuery("SELECT NEXT VALUE FOR seq_pedido")) {
+             ResultSet rs = st.executeQuery(sqlSiguienteId())) {
             rs.next();
             return rs.getInt(1);
         } catch (SQLException e) {

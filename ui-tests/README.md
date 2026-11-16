@@ -5,10 +5,11 @@ H2 de pruebas:
 
 ```
 src/test/java/com/restaurant/uitests/
-├── PosWebUiIT.java          4 pruebas (flujos principales del POS web)
+├── PosWebUiIT.java          5 pruebas (flujos principales del POS web e inicio de sesión por rol)
 ├── Navegador.java           crea Edge / Chrome / Firefox (Selenium Manager descarga el driver)
 └── paginas/                 Page Object Model
     ├── PaginaBase.java      esperas explícitas (WebDriverWait), clic tolerante al repintado
+    ├── PaginaLogin.java     pantalla de inicio de sesión (Corte 3)
     ├── PaginaSalon.java     mapa de mesas y panel de la mesa
     ├── DialogoDivision.java diálogo "Dividir la cuenta"
     ├── PaginaCocina.java    tablero de comandas
@@ -21,6 +22,9 @@ src/test/java/com/restaurant/uitests/
 | `shouldSplitBillByConsumptionAndMatchTotal` | Dividir la cuenta por consumo con un plato compartido y 10 % de propina → la suma de las partes da exacto (R2) |
 | `shouldShowLowStockAlertAfterPhysicalCount` | Conteo físico del aguacate → alerta de stock bajo en la fila y en el menú (R1) |
 | `shouldKeepUnsentOrderWhenSwitchingTables` | Cambiar de mesa no borra la comanda que se estaba armando |
+| `shouldShowOnlyKitchenSectionsAndRejectWrongPassword` | *(Corte 3)* Una clave equivocada muestra el error; el usuario de cocina solo ve *Cocina* y *Actividad*; cerrar sesión vuelve al login |
+
+Desde el Corte 3 cada prueba borra las cookies e inicia sesión antes de empezar (la API exige sesión).
 
 **Cómo correrlas** (levantan la aplicación sola en un puerto aleatorio):
 

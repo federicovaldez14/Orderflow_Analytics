@@ -46,7 +46,7 @@ Adoptar **arquitectura hexagonal en un solo despliegue**:
   notificadores), más el *composition root* (`ConfiguracionOrderflow`), único lugar donde se decide
   qué adaptador implementa cada puerto.
 
-Las dependencias solo apuntan hacia el núcleo; se verifica con `ReglasDeDependenciaTest`.
+Las dependencias solo apuntan hacia el núcleo; se verifica con `ReglasDeDependenciaTest` (Corte 2), reemplazada en el Corte 3 por las 8 reglas ArchUnit de `ArquitecturaTest`, que corren en el pipeline.
 
 ## Consecuencias
 

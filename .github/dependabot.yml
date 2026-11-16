@@ -1,0 +1,24 @@
+# Dependabot propone actualizaciones semanales. No reemplaza el control de SCA del
+# pipeline (Trivy): cada pull request de Dependabot pasa por el mismo pipeline.
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      parches-y-menores:
+        update-types: [minor, patch]
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

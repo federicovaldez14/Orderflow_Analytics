@@ -16,8 +16,10 @@ vivo() { curl -sf -m 5 http://localhost:8080/actuator/health >/dev/null; }
 caida() { echo "!! Servicio caido durante: $1"; tail -20 perf/results/app.log; echo "Servicio caido durante: $1 (cache=$CACHE, memoria=$MEMORIA, base=$BD). Causa: $(grep -a OutOfMemory perf/results/app.log | tail -1)" > "perf/results/CAIDA-$SUF.txt"; exit 1; }
 mvn -q -DskipTests package || exit 1
 JAR=$(ls target/orderflow-analytics-*.jar | head -1)
+# Desde el Corte 3 la API exige sesion: administrador de prueba solo en esta base efimera; k6 usa la misma clave
+export ORDERFLOW_CLAVE="clave-local-carga-123"
 java -Xmx"$MEMORIA" -XX:+ExitOnOutOfMemoryError -jar "$JAR" --orderflow.ui.enabled=false --orderflow.mesas=1000 \
-  --orderflow.analitica.cache-segundos="$CACHE" "${URL_BD[@]}" > perf/results/app.log 2>&1 &
+  --orderflow.analitica.cache-segundos="$CACHE" --orderflow.seguridad.admin-clave="$ORDERFLOW_CLAVE" "${URL_BD[@]}" > perf/results/app.log 2>&1 &
 APP=$!
 trap 'kill $APP 2>/dev/null' EXIT
 for i in $(seq 1 90); do vivo && break; sleep 1; done

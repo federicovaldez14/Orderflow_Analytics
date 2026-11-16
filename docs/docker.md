@@ -1,4 +1,8 @@
-# Contenerización con Docker (Taller de Docker — Parte 4)
+# Contenerización con Docker
+
+> Taller de Docker (Parte 4) ampliado en el Corte 3: PostgreSQL como servicio de Compose,
+> contenedor endurecido y observabilidad. Lo que se despliega en producción está en
+> [devops.md](devops.md) y en la [vista de despliegue](arquitectura.md#8-vista-de-despliegue-corte-3).
 
 La aplicación Spring Boot (Java 17, Maven) se empaqueta en una imagen **multi-stage** y se levanta
 con **Docker Compose**. Dentro del contenedor corren la API REST, el POS web
@@ -8,7 +12,7 @@ con **Docker Compose**. Dentro del contenedor corren la API REST, el POS web
 |---|---|
 | [`Dockerfile`](../Dockerfile) | Imagen multi-stage: compila con Maven + JDK 17 y ejecuta solo con el JRE 17 |
 | [`.dockerignore`](../.dockerignore) | Deja fuera del build `target/`, `.git`, `.env`, documentación, pruebas de carga y videos |
-| [`docker-compose.yml`](../docker-compose.yml) | Levanta la app con su volumen de datos y variables desde `.env` |
+| [`docker-compose.yml`](../docker-compose.yml) | Levanta la app y PostgreSQL 18 (y, con el perfil `observabilidad`, Prometheus y Grafana) con variables desde `.env` |
 | [`.env.example`](../.env.example) | Plantilla de configuración (se sube); el `.env` real está en `.gitignore` |
 
 ## 1. Cómo ejecutarlo
@@ -18,7 +22,7 @@ Requisito: Docker Desktop abierto (`docker version` debe mostrar *Server*).
 ```bash
 cp .env.example .env              # en PowerShell también funciona (alias de Copy-Item)
 docker compose up -d --build
-docker compose ps                 # esperar a que el servicio app diga "healthy"
+docker compose ps                 # esperar a que db y app digan "healthy"
 ```
 
 Abrir <http://localhost:8080>. Para detenerlo: `docker compose down` (conserva los datos) o
@@ -32,7 +36,8 @@ docker run --rm -p 8080:8080 orderflow-analytics:dev
 ```
 
 Sin variables, la app usa la base H2 en memoria de `application.properties`, así que arranca igual
-(los datos se pierden al detener el contenedor).
+(los datos se pierden al detener el contenedor y el administrador recibe una clave aleatoria que se
+muestra en `docker logs`).
 
 ## 2. Decisiones y buenas prácticas
 
@@ -41,12 +46,17 @@ Sin variables, la app usa la base H2 en memoria de `application.properties`, as�
   dependencias de compilación no llegan a la imagen que se ejecuta, que queda más pequeña y con
   menos superficie de ataque.
 - **Versiones fijas completas** (`maven:3.9.16-eclipse-temurin-17-noble`,
-  `eclipse-temurin:17.0.20.1_1-jre-noble`), nunca `latest`: el build es reproducible.
+  `eclipse-temurin:17.0.21_9-jre-noble`, `postgres:18.7-alpine`), nunca `latest`: el build es
+  reproducible. La imagen base se actualizó en el Corte 3 porque el escaneo de Trivy encontró una
+  vulnerabilidad alta en la anterior ([seguridad.md](seguridad.md#4-registro-de-hallazgos), H-05).
 - **Caché de capas.** Se copia primero el `pom.xml` y se descargan las dependencias; después `src/`.
   Mientras el `pom.xml` no cambie, esa capa se reutiliza. Además `--mount=type=cache` conserva el
   repositorio local de Maven entre builds.
-- **Sin pruebas en el build** (`-Dmaven.test.skip=true`): las 201 pruebas ya corren en el CI
-  (`.github/workflows/ci.yml`); el Dockerfile solo empaqueta.
+- **Sin pruebas en el build** (`-Dmaven.test.skip=true`): las pruebas ya corren en las etapas 2 a 5
+  del pipeline antes de construir la imagen (`.github/workflows/ci.yml`); el Dockerfile solo
+  empaqueta.
+- **Versión dentro de la imagen.** `ARG VERSION` → `ENV ORDERFLOW_VERSION`: el pipeline construye con
+  `--build-arg VERSION=<commit>` y `/actuator/info` responde qué versión está corriendo.
 - **Usuario sin privilegios.** La app corre como el usuario de sistema `app`, no como root; si alguien
   la compromete, tiene menos permisos dentro del contenedor.
 - **`HEALTHCHECK`** contra `/actuator/health/readiness` (se habilitó con
@@ -59,20 +69,25 @@ Sin variables, la app usa la base H2 en memoria de `application.properties`, as�
   las credenciales. Ni el `.env` ni las claves terminan dentro de la imagen (`.dockerignore`).
 - **`-XX:MaxRAMPercentage=75`**: la JVM ajusta su heap a la memoria que el contenedor tenga asignada.
 
-## 3. ¿Por qué no hay un servicio de base de datos?
+## 3. PostgreSQL como servicio de Compose (Corte 3)
 
-El proyecto usa **H2 embebida** (ADR-002): la base corre dentro del mismo proceso que la aplicación,
-no como un servidor aparte. Por eso Compose levanta un solo servicio, y no hay `depends_on` con
-condición: no existe otro servicio del que dependa. Lo que sí hace Compose es montar un
-**volumen** (`datos-h2`) en `/app/data`, donde se guarda la base en modo archivo
-(`jdbc:h2:file:/app/data/orderflow`). Así los pedidos y el inventario sobreviven a
-`docker compose down` / `up` y a reinicios del contenedor (`restart: unless-stopped`).
+En el taller la base era H2 embebida dentro del proceso, así que Compose tenía un solo servicio. En
+el Corte 3 la base pasó a **PostgreSQL 18** ([ADR-005](adr/ADR-005-despliegue-render-neon-ghcr.md)),
+como estaba previsto: gracias a la hexagonal solo cambiaron la configuración y el adaptador JDBC
+(la sintaxis de la secuencia), no el dominio.
 
-Gracias a la arquitectura hexagonal, pasar a un contenedor de PostgreSQL sería agregar un servicio
-`db` con su healthcheck, `depends_on: condition: service_healthy` y otra URL JDBC: cambia el
-adaptador de persistencia y la configuración, no el dominio.
+- **Servicio `db`** (`postgres:18.7-alpine`) con volumen `datos-db` y **healthcheck**
+  `pg_isready`. No publica puertos: solo la aplicación lo alcanza, por la red interna de Compose.
+- **`depends_on: db: condition: service_healthy`**: la aplicación arranca cuando PostgreSQL ya acepta
+  conexiones, no solo cuando el contenedor existe.
+- **Contenedor de la app endurecido:** `read_only: true` (Tomcat escribe solo en un `tmpfs` en
+  `/tmp`), `cap_drop: ALL`, `no-new-privileges` y `mem_limit: 768m`.
+- **Perfil `observabilidad`:** `docker compose --profile observabilidad up -d` agrega Prometheus
+  (recolecta `/actuator/prometheus` con el usuario de solo lectura `MONITOR`; la clave llega como
+  *secret* de Compose) y Grafana con el tablero del SLO ya provisionado. Ambos escuchan solo en
+  `127.0.0.1`.
 
-## 4. Evidencia
+## 4. Evidencia (taller, con H2)
 
 **Contenedor `healthy`, readiness en `UP` y la app corriendo como usuario `app` (uid 999):**
 

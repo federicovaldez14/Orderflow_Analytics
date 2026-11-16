@@ -1,10 +1,12 @@
 package com.restaurant.uitests;
 
 import com.restaurant.infraestructura.config.DatosIniciales;
+import com.restaurant.soporte.Credenciales;
 import com.restaurant.soporte.LimpiadorBD;
 import com.restaurant.uitests.paginas.DialogoDivision;
 import com.restaurant.uitests.paginas.PaginaCocina;
 import com.restaurant.uitests.paginas.PaginaInventario;
+import com.restaurant.uitests.paginas.PaginaLogin;
 import com.restaurant.uitests.paginas.PaginaSalon;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -15,13 +17,14 @@ import org.openqa.selenium.WebDriver;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.boot.web.server.LocalServerPort;
+import org.springframework.boot.test.web.server.LocalServerPort;
 
 import javax.sql.DataSource;
 import java.util.List;
 import java.util.Map;
 
 import static com.restaurant.soporte.Json.linea;
+import static com.restaurant.soporte.Json.mapa;
 import static com.restaurant.soporte.Json.pedido;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -37,7 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Comando: mvn verify -Pui-tests
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        properties = {"orderflow.ui.enabled=false", "orderflow.demo.historico=false", "orderflow.analitica.cache-segundos=0",
+        properties = {Credenciales.PROPIEDAD_CLAVE_ADMIN, "orderflow.ui.enabled=false", "orderflow.demo.historico=false", "orderflow.analitica.cache-segundos=0",
                 "spring.datasource.url=jdbc:h2:mem:pos_web_ui_it;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=10000"})
 class PosWebUiIT {
 
@@ -72,10 +75,14 @@ class PosWebUiIT {
     @BeforeEach
     void limpiar() {
         LimpiadorBD.limpiar(dataSource, datosIniciales);
+        rest = rest.withBasicAuth(Credenciales.ADMIN, Credenciales.CLAVE_ADMIN);
         url = "http://localhost:" + puerto;
-        // Página en blanco primero: así cada prueba recarga la web desde cero (sin diálogos ni estado de la anterior)
+        // Sin la sesión de la prueba anterior y con la web recargada desde cero (sin diálogos ni estado)
+        driver.get(url + "/css/app.css");
+        driver.manage().deleteAllCookies();
         driver.get("about:blank");
         driver.get(url + "/#/salon");
+        new PaginaLogin(driver, url).entrarComo(Credenciales.ADMIN, Credenciales.CLAVE_ADMIN);
     }
 
     @Test
@@ -166,5 +173,23 @@ class PosWebUiIT {
 
         // Assert: las dos gaseosas siguen ahí, listas para enviar
         assertEquals(2, salon.unidadesEnComanda("Gaseosa"));
+    }
+
+    @Test
+    @DisplayName("Flujo 5 · La cocina solo ve sus secciones; una clave equivocada muestra el error y no entra")
+    void shouldShowOnlyKitchenSectionsAndRejectWrongPassword() {
+        // Arrange: el administrador crea el usuario de cocina por la API
+        rest.postForEntity("/api/usuarios", mapa("usuario", "cocina1", "clave", "clave-cocina-123", "rol", "COCINA"),
+                Map.class);
+        PaginaLogin login = new PaginaLogin(driver, url);
+        login.cerrarSesion();
+
+        // Act + Assert: clave equivocada
+        login.entrarConError("cocina1", "otra-clave-cualquiera");
+        assertTrue(login.errorMostrado().contains("incorrectos"));
+
+        // Act + Assert: con la clave correcta ve Cocina y Actividad, no Salón, Inventario ni Analítica
+        login.entrarComo("cocina1", "clave-cocina-123");
+        assertEquals(List.of("cocina", "actividad"), login.seccionesVisibles());
     }
 }

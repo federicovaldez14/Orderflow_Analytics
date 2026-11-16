@@ -1,0 +1,53 @@
+# Publica una versión al empujar un tag semántico (git tag v3.0.0 && git push origin v3.0.0):
+#  - etiqueta en GHCR con la versión la MISMA imagen que el pipeline construyó, escaneó y
+#    desplegó para ese commit (sha-<commit>), sin volver a construirla;
+#  - crea el GitHub Release con las notas de CHANGELOG.md y el .jar (incluye el POS de escritorio).
+name: Versión
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  IMAGEN: ghcr.io/${{ github.repository_owner }}/orderflow-analytics
+
+jobs:
+  publicar:
+    name: Publicar versión ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17", cache: maven }
+      - name: Esperar la imagen del commit (la publica el pipeline de main)
+        run: |
+          imagen="$(echo "$IMAGEN" | tr '[:upper:]' '[:lower:]')"
+          echo "IMAGEN_BASE=$imagen" >> "$GITHUB_ENV"
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          for i in $(seq 1 60); do
+            docker manifest inspect "$imagen:sha-$GITHUB_SHA" >/dev/null 2>&1 && exit 0
+            echo "Todavía no está $imagen:sha-$GITHUB_SHA (¿terminó el pipeline de main?)…"; sleep 30
+          done
+          echo "::error::No existe $imagen:sha-$GITHUB_SHA. El tag debe apuntar a un commit de main con el pipeline en verde."; exit 1
+      - uses: docker/setup-buildx-action@v3
+      - name: Etiquetar la imagen con la versión
+        run: docker buildx imagetools create -t "$IMAGEN_BASE:${GITHUB_REF_NAME}" "$IMAGEN_BASE:sha-$GITHUB_SHA"
+      - name: Construir el .jar (servidor + POS de escritorio)
+        run: mvn -B -ntp -DskipTests package
+      - name: Notas de la versión desde CHANGELOG.md
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v v="$version" '$0 ~ "^## \\[" v "\\]" {imprimir=1; next} /^## \[/ {imprimir=0} imprimir' CHANGELOG.md > notas.md
+          [ -s notas.md ] || { echo "::error::CHANGELOG.md no tiene la sección [$version]"; exit 1; }
+          {
+            echo; echo "**Imagen:** \`$IMAGEN_BASE:${GITHUB_REF_NAME}\` (= \`sha-$GITHUB_SHA\`)"
+          } >> notas.md
+      - name: Crear el GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "$GITHUB_REF_NAME" target/orderflow-analytics-*.jar --title "Orderflow Analytics $GITHUB_REF_NAME" --notes-file notas.md --verify-tag

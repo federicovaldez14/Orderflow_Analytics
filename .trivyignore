@@ -1,0 +1,10 @@
+# Vulnerabilidades aceptadas en el escaneo de Trivy (dependencias e imagen).
+# Cada línea debe tener su justificación, fecha de vencimiento (exp:) y su registro en
+# docs/seguridad.md. Al vencer, Trivy vuelve a bloquear el pipeline y hay que revisar.
+
+# H-07 — Spring Framework 6.2.19 (spring-webmvc). Sin parche en la rama 6.2; la corrección
+# solo existe en Spring 7.0.9 (Spring Boot 4). No aplica: la API es JSON pura, no usa
+# XsltView, vistas ni Server-Sent Events. Control compensatorio: regla ArchUnit R8, que
+# rompe el build si se empiezan a usar. Plan: migrar a Spring Boot 4 en el siguiente ciclo.
+CVE-2026-47884 exp:2027-02-28
+CVE-2026-47890 exp:2027-02-28

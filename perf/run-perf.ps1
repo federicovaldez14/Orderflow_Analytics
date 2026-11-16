@@ -62,8 +62,12 @@ if ($LASTEXITCODE -ne 0) { throw "Fallo la compilacion" }
 
 Write-Host "== 2. Levantando el servicio (sin ventana, 1000 mesas, cache analitica $CacheAnalitica s, memoria $Memoria, base $BaseDatos) =="
 $jar = Get-ChildItem target\orderflow-analytics-*.jar | Select-Object -First 1
+# Desde el Corte 3 la API exige sesion: el servicio local arranca con un administrador de prueba
+# (solo existe en esta base efimera) y k6 inicia sesion con esa misma clave.
+$env:ORDERFLOW_CLAVE = "clave-local-carga-123"
 $argumentos = @("-Xmx$Memoria", "-XX:+ExitOnOutOfMemoryError", "-jar", $jar.FullName,
-    "--orderflow.ui.enabled=false", "--orderflow.mesas=1000", "--orderflow.analitica.cache-segundos=$CacheAnalitica")
+    "--orderflow.ui.enabled=false", "--orderflow.mesas=1000", "--orderflow.analitica.cache-segundos=$CacheAnalitica",
+    "--orderflow.seguridad.admin-clave=$($env:ORDERFLOW_CLAVE)")
 if ($BaseDatos -eq "archivo") {
     Remove-Item perf\results\bd-perf -Recurse -Force -ErrorAction SilentlyContinue   # cada corrida empieza limpia
     $argumentos += "--spring.datasource.url=jdbc:h2:file:./perf/results/bd-perf/orderflow;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=10000"

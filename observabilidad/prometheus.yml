@@ -1,0 +1,15 @@
+# Prometheus consulta las métricas de la aplicación (Micrometer) cada 5 s.
+# /actuator/prometheus exige el rol MONITOR: se usa HTTP Basic con la clave
+# que Compose entrega como secreto en /run/secrets/clave_monitor.
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: orderflow
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["app:8080"]
+    basic_auth:
+      username: prometheus
+      password_file: /run/secrets/clave_monitor

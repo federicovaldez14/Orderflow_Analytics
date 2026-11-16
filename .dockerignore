@@ -22,3 +22,5 @@ ux/
 data/
 *.log
 .jqwik-database
+observabilidad/
+k8s/

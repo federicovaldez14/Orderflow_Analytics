@@ -1,6 +1,7 @@
 package com.restaurant.infraestructura.rest;
 
 import com.restaurant.infraestructura.config.DatosIniciales;
+import com.restaurant.soporte.Credenciales;
 import com.restaurant.soporte.LimpiadorBD;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -29,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * Pedido: 3x Bandeja Paisa (96.000) + 2x Limonada de coco (18.000) = 114.000
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        properties = {"orderflow.ui.enabled=false", "orderflow.demo.historico=false", "orderflow.analitica.cache-segundos=0",
+        properties = {Credenciales.PROPIEDAD_CLAVE_ADMIN, "orderflow.ui.enabled=false", "orderflow.demo.historico=false", "orderflow.analitica.cache-segundos=0",
                 "spring.datasource.url=jdbc:h2:mem:api_division_it;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=10000"})
 class ApiDivisionCuentaIT {
 
@@ -47,6 +48,7 @@ class ApiDivisionCuentaIT {
     @BeforeEach
     void prepararPedidoEntregado() {
         LimpiadorBD.limpiar(dataSource, datosIniciales);
+        rest = rest.withBasicAuth(Credenciales.ADMIN, Credenciales.CLAVE_ADMIN);
         pedidoId = (Integer) rest.postForEntity("/api/pedidos",
                 pedido(6, linea("Bandeja Paisa", 3), linea("Limonada de coco", 2)), Map.class).getBody().get("id");
         for (int i = 0; i < 3; i++) {
