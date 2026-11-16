@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---------- Etapa 1: compilar el .jar con Maven (JDK 17) ----------
-FROM maven:3.9.16-eclipse-temurin-17-noble AS build
+FROM maven:3.9-eclipse-temurin-26-noble AS build
 WORKDIR /src
 
 # Primero solo el pom.xml: mientras no cambie, Docker reutiliza la capa de dependencias.
