@@ -88,7 +88,7 @@ Decisiones posibles: **corregido** (enlace al commit), **falso positivo** (justi
 | H-05 | Imagen | Imagen base `eclipse-temurin:17.0.20.1_1-jre-noble`: paquete del sistema con CVE alta | HIGH | **Corregido** | Base `17.0.21_9-jre-noble`; hoy 0 HIGH/CRITICAL del sistema operativo ([2df216c](https://github.com/federicovaldez14/Orderflow_Analytics/commit/2df216c)) |
 | H-06 | SAST | `java/comparison-with-wider-type` en `Repartidor.java:55`: el bucle compara un `int` con un `long` (bucle infinito si el `long` supera `Integer.MAX_VALUE`) | 8.1 (alto) | **Corregido** | En la práctica el sobrante es < número de personas, pero se corrigió con `Math.toIntExact` (falla en vez de colgarse) ([d12865b](https://github.com/federicovaldez14/Orderflow_Analytics/commit/d12865b)) |
 | H-07 | SCA + Imagen | Spring Framework 6.2.19 (`spring-webmvc`): **CVE-2026-47884** (ejecución remota vía `XsltView`) y **CVE-2026-47890** (corrupción de flujos SSE con vistas) | CRITICAL | **Riesgo aceptado** hasta el 2027-02-28 | No hay parche para la rama 6.2 (la corrección es Spring 7.0.9 = Spring Boot 4). **No aplica:** la API es JSON pura; no usa vistas, `XsltView`, `ModelAndView` ni `SseEmitter`. **Control compensatorio:** la regla ArchUnit **R8** rompe el build si alguien empieza a usarlos. **Para corregirlo:** migrar a Spring Boot 4 (Jakarta EE 11, Jackson 3, cambios en paquetes de pruebas), planeado para el siguiente ciclo. La excepción vence en `.trivyignore` y vuelve a bloquear el pipeline |
-| H-08 | Secretos | Gitleaks sobre todo el historial (31 confirmaciones al cierre del Corte 3) | — | Sin hallazgos | Las claves de prueba (`clave-solo-pruebas-1`, `clave-local-*`) no coinciden con patrones de secretos y no dan acceso a ningún entorno real |
+| H-08 | Secretos | Gitleaks sobre todo el historial de `main` (45 confirmaciones al 16/11/2026, se repite en cada pipeline) | — | Sin hallazgos | Las claves de prueba (`clave-solo-pruebas-1`, `clave-local-*`) no coinciden con patrones de secretos y no dan acceso a ningún entorno real |
 | H-09 | SAST | `java/log-injection` en `FiltroAuditoria.java:33`: el usuario y el método llegaban al log sin limpiar | medio | **Corregido** | Todos los valores pasan por `sinSaltos()`; prueba `FiltroAuditoriaTest` ([3530172](https://github.com/federicovaldez14/Orderflow_Analytics/commit/3530172)) |
 
 ## 5. Evidencia: pull request bloqueado
@@ -98,7 +98,18 @@ comprobar que el control de secretos detiene el pipeline. Se cierra **sin fusion
 
 | Pull request | Qué introduce | Control que lo bloquea | Estado |
 |---|---|---|---|
-| *(se completa al crearlo)* | | | |
+| [#18](https://github.com/federicovaldez14/Orderflow_Analytics/pull/18) · *[Prueba DevSecOps] Llave de API en un archivo de configuración* | `src/main/resources/application-pagos.properties` con `pasarela.api-key=` y 40 caracteres aleatorios (no corresponden a ningún servicio) | **6c · Secretos (Gitleaks, todo el historial)**: regla `generic-api-key` en la línea 3 (commit `68191ab`). Es un check obligatorio de la protección de `main`, así que GitHub marcó el PR como `BLOCKED` | Cerrado **sin fusionar** y con la rama borrada (16/11/2026). [Ejecución del pipeline](https://github.com/federicovaldez14/Orderflow_Analytics/actions/runs/43937492788) |
+
+Las demás etapas del mismo pipeline pasaron (construcción, pruebas, CodeQL, Trivy, imagen): el
+bloqueo se debe **solo** al secreto. La llave nunca llegó a `main`, así que el escaneo de todo el
+historial en `main` sigue sin hallazgos (H-08).
+
+Otros dos casos en que el pipeline detuvo un cambio real (no preparado):
+
+| Commit | Qué detectó | Etapa | Cómo se resolvió |
+|---|---|---|---|
+| `4db7466` (PR #1) | CodeQL: comparación `int`/`long` en `Repartidor` (H-06) | 6a · SAST | Corregido en `d12865b` |
+| `6cae416` (primer despliegue a `main`) | Prueba de carga corta: p95 de `crear_pedido` 1.303 ms > 500 ms | 8 · Despliegue | Escenario ajustado a la demanda real, sin cambiar los umbrales ([devops.md §3.1](devops.md#31-slo-en-el-pipeline-etapa-8)) |
 
 ## 6. Otras medidas (fuera del pipeline)
 

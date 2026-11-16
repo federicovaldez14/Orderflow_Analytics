@@ -191,7 +191,18 @@ esquema de forma incompatible, se restaura la copia de seguridad ([implementacio
 
 | Fecha | Desde → hacia | Motivo | Ejecución | Resultado |
 |---|---|---|---|---|
-| *(se completa al ejecutarla)* | | Prueba del procedimiento | | |
+| 16/11/2026 19:53 UTC | **v3.0.1** (`b4d165f`) → **v3.0.0** (`ad7116e`) | Prueba del procedimiento | [Reversión #43944041376](https://github.com/federicovaldez14/Orderflow_Analytics/actions/runs/43944041376) (a mano, entorno `produccion`) | Éxito en **≈ 2 min**: Render tomó `ghcr.io/federicovaldez14/orderflow-analytics:v3.0.0`, `/actuator/info` respondió `ad7116e` y la prueba de humo pasó. La base de datos no se tocó: la 3.0.1 no cambió el esquema |
+
+Cómo se verificó desde fuera del pipeline:
+
+```bash
+curl -s https://orderflow-analytics-sha.onrender.com/actuator/info
+# antes:   {"app":{"name":"orderflow-analytics","version":"b4d165f40fb1954f727582c1ba22fa9fee61ec45"}}
+# después: {"app":{"name":"orderflow-analytics","version":"ad7116e62543ce2d62e857ae721213c0fd3d8630"}}
+```
+
+La reversión deja producción en la versión elegida hasta la siguiente fusión a `main`, que vuelve a
+desplegar la última versión (*roll forward*) con todas las verificaciones de la etapa 8.
 
 ## 7. Cómo ejecutar el pipeline
 
