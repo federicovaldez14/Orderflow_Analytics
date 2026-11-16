@@ -55,7 +55,7 @@
       <dependency>
         <groupId>org.apache.tomcat.embed</groupId>
         <artifactId>tomcat-embed-websocket</artifactId>
-        <version>10.1.62</version>
+        <version>11.0.29</version>
       </dependency>
       <!-- pgjdbc 42.7.14 corrige CVE-2026-54291 (HIGH, degradación de SCRAM-SHA-256-PLUS) -->
       <dependency>
