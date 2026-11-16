@@ -7,11 +7,11 @@ on:
   workflow_dispatch:
     inputs:
       escenario:
-        description: "Escenario del flujo de pedidos (baseline = 10 VUs durante 1 min)"
+        description: "Escenario del flujo de pedidos (baseline = 10 VUs durante 1 min; despliegue = el del pipeline)"
         required: true
         default: baseline
         type: choice
-        options: [baseline]
+        options: [baseline, despliegue]
   schedule:
     - cron: "0 11 * * 1"
 
@@ -26,6 +26,8 @@ jobs:
     name: Carga ${{ inputs.escenario || 'baseline' }} contra producción
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # La clave del administrador es un secreto del entorno produccion
+    environment: produccion
     steps:
       - uses: actions/checkout@v4
       - name: Flujo de pedidos (Retos 1 y 2)
@@ -45,4 +47,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: reporte-carga-larga
-          path: perf/results/*-baseline.*
+          path: |
+            perf/results/flujo-pedidos-${{ inputs.escenario || 'baseline' }}.*
+            perf/results/analitica-baseline.*

@@ -39,6 +39,11 @@ Corte 3: entrega continua y segura. Sin funcionalidades de negocio nuevas.
 - Posible bucle infinito en el reparto de la cuenta si el sobrante superara el rango de `int`
   (hallazgo de CodeQL).
 - Inyección en el log de auditoría con saltos de línea (CWE-117, hallazgo de CodeQL).
+- El panel «Errores 5xx» de Grafana mostraba «No data» cuando no había errores; ahora muestra 0 %.
+- La prueba de carga del despliegue saturaba la CPU del plan gratuito (5 usuarios sin pausa) y detuvo
+  el primer despliegue a `main`; ahora representa la demanda real del restaurante con 20 s de
+  calentamiento. Los umbrales del SLO no cambiaron.
+- `carga-larga.yml` no tenía acceso a la clave del administrador (secreto del entorno `produccion`).
 
 ### Seguridad
 - Riesgo aceptado hasta 2027-02-28: CVE-2026-47884 y CVE-2026-47890 de Spring Framework 6.2 (sin

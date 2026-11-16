@@ -99,7 +99,7 @@ class PosWebUiIT {
                 .enviarACocina();
         String aviso = salon.esperarAviso("enviada a cocina");
         salon.esperarEstadoMesa(3, "Creado");
-        String total = salon.totalDelPanel();
+        String total = salon.esperarTotal("73.000");
 
         // Act: la cocina la avanza por cada estado
         cocina.abrir()

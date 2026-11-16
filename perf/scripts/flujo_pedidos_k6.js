@@ -31,8 +31,12 @@ import { BASE_URL, SCENARIO, basico, sesionJson, iniciarSesion, esperarServicio,
  */
 
 const ESCENARIOS = {
-  // Prueba corta contra el entorno desplegado (pipeline de despliegue): mismos umbrales del SLO
-  despliegue: { executor: 'constant-vus', vus: 5, duration: '45s' },
+  // Prueba corta contra el entorno desplegado (pipeline de despliegue), mismos umbrales del SLO.
+  // Representa la hora pico del restaurante con mucho margen: un flujo continuo que registra un pedido
+  // completo (crear, avanzar hasta entregado y dividir la cuenta) cada ~2 s, unos 30 pedidos por
+  // minuto, cuando 10 mesas generan menos de 1 por minuto. La capacidad máxima se mide aparte (carga,
+  // estrés, pico); el plan gratuito de Render tiene 0,1 CPU y no está dimensionado para esas pruebas.
+  despliegue: { executor: 'constant-vus', vus: 1, duration: '90s', startTime: '20s', pausaMs: 1500 },
   baseline: { executor: 'constant-vus', vus: 10, duration: '1m' },
   carga: {
     executor: 'ramping-vus', startVUs: 0, gracefulRampDown: '20s',
@@ -51,16 +55,26 @@ const ESCENARIOS = {
 
 const SLO = [['crear_pedido', 500], ['avanzar_pedido', 300], ['dividir_cuenta', 300]];
 
+/** Escenario elegido; el de despliegue va precedido de 20 s de calentamiento que no cuentan en el SLO. */
+function escenarios() {
+  const { pausaMs, ...run } = ESCENARIOS[SCENARIO] || ESCENARIOS.baseline;
+  if (!run.startTime) return { run };
+  return { calentamiento: { executor: 'constant-vus', vus: run.vus, duration: run.startTime }, run };
+}
+
 export const options = {
   // La sesión (cookies) se conserva entre iteraciones: cada VU inicia sesión una sola vez
   noCookiesReset: true,
-  scenarios: { run: ESCENARIOS[SCENARIO] || ESCENARIOS.baseline },
+  // En el plan gratuito de Render el servicio se duerme sin tráfico y tarda ≈ 1 min en despertar
+  setupTimeout: '180s',
+  scenarios: escenarios(),
+  // Los umbrales solo miden el escenario "run": el calentamiento de la JVM recién desplegada no cuenta
   thresholds: {
     http_req_failed: ['rate<0.01'],
-    http_req_duration: ['p(95)<500'],
-    'http_req_duration{name:crear_pedido}': ['p(95)<500'],
-    'http_req_duration{name:avanzar_pedido}': ['p(95)<300'],
-    'http_req_duration{name:dividir_cuenta}': ['p(95)<300'],
+    'http_req_duration{scenario:run}': ['p(95)<500'],
+    'http_req_duration{name:crear_pedido,scenario:run}': ['p(95)<500'],
+    'http_req_duration{name:avanzar_pedido,scenario:run}': ['p(95)<300'],
+    'http_req_duration{name:dividir_cuenta,scenario:run}': ['p(95)<300'],
     checks: ['rate>0.99'],
     // Reto 1: con todo el tráfico concurrente, ningún ingrediente puede quedar en negativo
     ingredientes_negativos: ['count==0'],
@@ -134,7 +148,7 @@ export default function (datos) {
   cuentaCuadra.add(ok);
   check(div, { 'cuenta dividida y cuadra al peso': () => ok });
 
-  const pausa = Number(__ENV.SLEEP_MS || 0);
+  const pausa = Number(__ENV.SLEEP_MS || ESCENARIO.pausaMs || 0);
   if (pausa > 0) sleep(pausa / 1000);
 }
 
