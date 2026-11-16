@@ -98,7 +98,18 @@ comprobar que el control de secretos detiene el pipeline. Se cierra **sin fusion
 
 | Pull request | Qué introduce | Control que lo bloquea | Estado |
 |---|---|---|---|
-| *(se completa al crearlo)* | | | |
+| [#18](https://github.com/federicovaldez14/Orderflow_Analytics/pull/18) · *[Prueba DevSecOps] Llave de API en un archivo de configuración* | `src/main/resources/application-pagos.properties` con `pasarela.api-key=` y 40 caracteres aleatorios (no corresponden a ningún servicio) | **6c · Secretos (Gitleaks, todo el historial)**: regla `generic-api-key` en la línea 3 (commit `68191ab`). Es un check obligatorio de la protección de `main`, así que GitHub marcó el PR como `BLOCKED` | Cerrado **sin fusionar** y con la rama borrada (16/11/2026). [Ejecución del pipeline](https://github.com/federicovaldez14/Orderflow_Analytics/actions/runs/43937492788) |
+
+Las demás etapas del mismo pipeline pasaron (construcción, pruebas, CodeQL, Trivy, imagen): el
+bloqueo se debe **solo** al secreto. La llave nunca llegó a `main`, así que el escaneo de todo el
+historial en `main` sigue sin hallazgos (H-08).
+
+Otros dos casos en que el pipeline detuvo un cambio real (no preparado):
+
+| Commit | Qué detectó | Etapa | Cómo se resolvió |
+|---|---|---|---|
+| `4db7466` (PR #1) | CodeQL: comparación `int`/`long` en `Repartidor` (H-06) | 6a · SAST | Corregido en `d12865b` |
+| `6cae416` (primer despliegue a `main`) | Prueba de carga corta: p95 de `crear_pedido` 1.303 ms > 500 ms | 8 · Despliegue | Escenario ajustado a la demanda real, sin cambiar los umbrales ([devops.md §3.1](devops.md#31-slo-en-el-pipeline-etapa-8)) |
 
 ## 6. Otras medidas (fuera del pipeline)
 
