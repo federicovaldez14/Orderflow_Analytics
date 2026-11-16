@@ -228,7 +228,7 @@ jobs:
           echo "imagen=$imagen" >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@v3
       - name: Construir la imagen (multi-stage, versión = SHA)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           load: true
