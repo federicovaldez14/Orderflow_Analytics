@@ -77,7 +77,8 @@ export function resumen(data, prefijo, endpoints) {
   lineas.push(`| Peticiones totales | ${req.count} |`);
   lineas.push(`| Throughput | ${req.rate.toFixed(1)} req/s |`);
   lineas.push(`| Tasa de error HTTP | ${(fallidas * 100).toFixed(2)} % |`);
-  const d = m.http_req_duration.values;
+  // Si hubo calentamiento, la latencia que se reporta es la del escenario medido ("run")
+  const d = (m['http_req_duration{scenario:run}'] || m.http_req_duration).values;
   lineas.push(`| Latencia p50 / p90 / p95 / máx | ${d.med.toFixed(1)} / ${d['p(90)'].toFixed(1)} / ${d['p(95)'].toFixed(1)} / ${d.max.toFixed(1)} ms |`);
   if (dur.avg !== undefined) {
     lineas.push(`| Duración promedio de iteración | ${dur.avg.toFixed(1)} ms |`);
@@ -88,8 +89,8 @@ export function resumen(data, prefijo, endpoints) {
   lineas.push('| Endpoint | p95 (ms) | SLO |');
   lineas.push('|---|---|---|');
   for (const [nombre, slo] of endpoints) {
-    const clave = `http_req_duration{name:${nombre}}`;
-    if (m[clave]) {
+    const clave = [`http_req_duration{name:${nombre},scenario:run}`, `http_req_duration{name:${nombre}}`].find((c) => m[c]);
+    if (clave) {
       const p95 = m[clave].values['p(95)'];
       lineas.push(`| ${nombre} | ${p95.toFixed(1)} | ≤ ${slo} ms → ${p95 <= slo ? 'cumple' : 'NO cumple'} |`);
     }
