@@ -34,7 +34,7 @@ jobs:
             echo "Todavía no está $imagen:sha-$GITHUB_SHA (¿terminó el pipeline de main?)…"; sleep 30
           done
           echo "::error::No existe $imagen:sha-$GITHUB_SHA. El tag debe apuntar a un commit de main con el pipeline en verde."; exit 1
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
       - name: Etiquetar la imagen con la versión
         run: docker buildx imagetools create -t "$IMAGEN_BASE:${GITHUB_REF_NAME}" "$IMAGEN_BASE:sha-$GITHUB_SHA"
       - name: Construir el .jar (servidor + POS de escritorio)
