@@ -86,7 +86,7 @@ y del propio README del Corte 2.
 | API sin autenticación | 2 | **Cambia** → Spring Security con roles | Al publicar el sistema en Internet, dejarlo abierto era la amenaza principal (STRIDE A1, A2) |
 | Pruebas ejecutadas a mano | 2 | **Cambia** → pipeline con *quality gates* | Un cambio que rompe algo ya no puede llegar a `main` sin que se note |
 | Spring Boot 2.7 | 1–2 | **Cambia** → 3.5 | Sin soporte y con vulnerabilidades críticas |
-| SLO p95 ≤ 500 ms / errores < 1 % | 2 | **Se mantiene** y ahora se verifica en cada despliegue | Es la misma meta; el entorno gratuito es más lento que un PC y aun así la cumple (prueba corta de 5 usuarios) |
+| SLO p95 ≤ 500 ms / errores < 1 % | 2 | **Se mantiene** y ahora se verifica en cada despliegue | Es la misma meta; el entorno gratuito es más lento que un PC y aun así la cumple (prueba corta después de cada despliegue; ver `devops.md` §3.1) |
 
 ## 6. Límites conocidos del sistema final
 

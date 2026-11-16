@@ -78,7 +78,8 @@ corrida → *Artifacts*).
 
 El SLO del Corte 2 está escrito como `thresholds` de k6 en
 [`perf/scripts/flujo_pedidos_k6.js`](../perf/scripts/flujo_pedidos_k6.js). Después de la prueba de
-humo corre el escenario `despliegue` (**5 usuarios virtuales durante 45 s**, cada uno con su sesión):
+humo corre el escenario `despliegue`: **20 s de calentamiento** (no cuentan) y luego **90 s de un flujo
+continuo** que registra un pedido completo cada ≈ 2 s (crear, avanzar hasta entregado, dividir la cuenta):
 
 | Métrica | Umbral (falla si no se cumple) | Origen |
 |---|---|---|
@@ -89,9 +90,27 @@ humo corre el escenario `despliegue` (**5 usuarios virtuales durante 45 s**, cad
 | `checks` | > 99 % | Respuestas correctas, no solo rápidas (la cuenta cuadra al peso, el pedido avanza) |
 | `ingredientes_negativos` | == 0 | Reto 1: ninguna venta concurrente deja stock negativo |
 
-¿Por qué 5 usuarios y 45 s? El plan gratuito de Render tiene 0,1 CPU: la prueba corta busca detectar
-una **regresión** (una consulta que vuelve a tardar el doble), no medir capacidad. La prueba larga
-(10 usuarios, 1 min, flujo de pedidos + analítica) corre en `carga-larga.yml` a mano o los lunes.
+¿Por qué esa carga? La prueba corta busca detectar una **regresión** (una consulta que vuelve a tardar
+el doble), no medir capacidad. Representa la hora pico del restaurante con mucho margen: ≈ 30 pedidos
+por minuto, cuando 10 mesas generan menos de 1. La capacidad máxima ya se midió en el Corte 2 (carga,
+estrés y pico en [perf/README.md](../perf/README.md)); el plan gratuito de Render (0,1 CPU) no está
+dimensionado para eso.
+
+**Cómo llegamos a esta carga (evidencia).** El primer despliegue a `main` (commit `6cae416`) corrió el
+escenario anterior, 5 usuarios sin pausa durante 45 s, y **el pipeline se detuvo**: p95 de
+`crear_pedido` 1.303 ms y de `avanzar_pedido` 495 ms. No era una regresión del código (en local el
+mismo escenario da p95 de 55 ms) sino la CPU del plan gratuito saturada por una carga que el
+restaurante nunca genera. Ajustamos la carga, **no los umbrales**, y la medimos contra Render con
+`carga-larga.yml` (escenario `despliegue`) antes de fusionar:
+
+| Corrida contra Render | p95 `crear_pedido` | p95 `avanzar_pedido` | p95 `dividir_cuenta` | Errores | Resultado |
+|---|---|---|---|---|---|
+| 5 usuarios sin pausa, 45 s (pipeline de `6cae416`) | 1.303,6 ms | 495,4 ms | 403,7 ms | 0 % | Falla el SLO |
+| 2 usuarios con pausa de 3 s, 60 s | 379,6 ms | 294,8 ms | 201,2 ms | 0,41 % (1 *timeout* mientras el servicio despertaba) | Cumple, pero sin margen |
+| **1 flujo continuo con pausa de 1,5 s, 90 s** (el elegido) | **188,6 ms** | **165,8 ms** | **136,8 ms** | **0 %** | Cumple con margen |
+
+La prueba larga (10 usuarios, 1 min, flujo de pedidos + analítica) corre en `carga-larga.yml` a mano
+o los lunes; contra el plan gratuito se espera que falle y sirve para ver cuánto falta para un plan pago.
 
 **Entorno que se duerme:** el plan gratuito suspende el servicio tras 15 min sin tráfico. Por eso
 [`desplegar.sh`](../.github/scripts/desplegar.sh) espera hasta 15 min a que responda la versión

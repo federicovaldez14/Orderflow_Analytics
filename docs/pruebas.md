@@ -28,7 +28,7 @@ Lo que cambió respecto a las secciones de abajo, que documentan el Corte 2:
 | Sistema (HTTP) | 18 | **25** | `SeguridadIT` (7): 401 sin sesión, clave errada, 403 por rol (inventario, analítica, cocina), métricas protegidas, CSRF obligatorio, validación de usuarios. Las demás pruebas de sistema inician sesión | 3 · Pruebas de integración |
 | UI (Selenium) | 4 | **5** | Inicio de sesión: clave errada y cocina que solo ve sus pantallas | 5 · Pruebas de UI |
 | Humo (k6) | — | **10 checks** | `perf/scripts/humo_k6.js`: el flujo principal contra el entorno desplegado | 8 · Despliegue y verificación |
-| Carga (k6) | manual | escenario `despliegue` (5 VUs, 45 s) después de cada despliegue; baseline semanal | Los umbrales del SLO ya estaban como `thresholds`; ahora detienen el pipeline | 8 · Despliegue · Carga larga |
+| Carga (k6) | manual | escenario `despliegue` (20 s de calentamiento + 90 s de flujo continuo) después de cada despliegue; baseline semanal | Los umbrales del SLO ya estaban como `thresholds`; ahora detienen el pipeline | 8 · Despliegue · Carga larga |
 | **Total JUnit** | **201** | **218** | 172 en `mvn test` + 41 de integración y sistema + 5 de UI | |
 
 Cobertura de líneas del núcleo (dominio + aplicación) en la ejecución del 15/11/2026: **96,8 %**
