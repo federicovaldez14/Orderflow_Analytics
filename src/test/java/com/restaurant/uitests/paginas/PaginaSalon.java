@@ -62,17 +62,22 @@ public class PaginaSalon extends PaginaBase {
         return normalizar(visible(By.cssSelector("#panel-mesa .total-linea b")).getText());
     }
 
-    /** Espera a que el panel muestre el total esperado (el POS lo vuelve a dibujar al refrescar). */
+    /**
+     * Espera a que el panel muestre el total esperado y lo devuelve. Usa textContent y no getText():
+     * el POS vuelve a dibujar el panel al refrescar y, durante la transición, getText() devuelve "".
+     */
     public String esperarTotal(String esperado) {
         By total = By.cssSelector("#panel-mesa .total-linea b");
+        String[] leido = {""};
         espera.until(d -> {
             try {
-                return normalizar(d.findElement(total).getText()).contains(esperado);
+                leido[0] = normalizar(d.findElement(total).getAttribute("textContent"));
+                return leido[0].contains(esperado);
             } catch (org.openqa.selenium.StaleElementReferenceException e) {
                 return false;
             }
         });
-        return totalDelPanel();
+        return leido[0];
     }
 
     public DialogoDivision abrirDivisionDeCuenta() {
