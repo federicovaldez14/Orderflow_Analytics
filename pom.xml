@@ -15,7 +15,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.release>17</maven.compiler.release>
-    <spring-boot.version>3.5.16</spring-boot.version>
+    <spring-boot.version>4.1.2</spring-boot.version>
     <ui.excluir>**/*UiIT.java</ui.excluir>
   </properties>
 
