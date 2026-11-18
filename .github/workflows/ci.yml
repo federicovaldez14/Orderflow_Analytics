@@ -56,7 +56,7 @@ jobs:
         run: $MVN test -Dtest='!ArquitecturaTest' -Dsurefire.failIfNoSpecifiedTests=false
       - name: Publicar reportes de pruebas y cobertura
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: reporte-unitarias-y-cobertura
           path: |
@@ -76,7 +76,7 @@ jobs:
         run: $MVN verify -Dtest=NingunaUnitaria -Dsurefire.failIfNoSpecifiedTests=false -Djacoco.skip=true
       - name: Publicar reportes
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: reporte-integracion
           path: target/failsafe-reports/
@@ -94,7 +94,7 @@ jobs:
         run: $MVN test -Dtest=ArquitecturaTest -Djacoco.skip=true
       - name: Publicar reporte
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: reporte-arquitectura
           path: target/surefire-reports/
@@ -114,7 +114,7 @@ jobs:
           -Dsurefire.failIfNoSpecifiedTests=false -Djacoco.skip=true -Dui.navegador=chrome
       - name: Publicar reporte
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: reporte-ui
           path: target/failsafe-reports/
@@ -158,7 +158,7 @@ jobs:
         run: python3 .github/scripts/umbral_sarif.py resultados-codeql 7.0
       - name: Publicar reporte
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: reporte-sast-${{ matrix.lenguaje }}
           path: resultados-codeql/
@@ -185,7 +185,7 @@ jobs:
           --severity HIGH,CRITICAL --ignore-unfixed --ignorefile /repo/.trivyignore --exit-code 1 /repo/pom.xml
       - name: Publicar reporte
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: reporte-sca
           path: trivy-dependencias.txt
@@ -204,7 +204,7 @@ jobs:
           --report-format sarif --report-path /repo/gitleaks.sarif --exit-code 1
       - name: Publicar reporte
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: reporte-secretos
           path: gitleaks.sarif
@@ -248,7 +248,7 @@ jobs:
           ${{ steps.datos.outputs.imagen }}
       - name: Publicar reporte
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: reporte-imagen
           path: trivy-imagen.txt
@@ -289,7 +289,7 @@ jobs:
           $K6 run --quiet perf/scripts/flujo_pedidos_k6.js
       - name: Publicar reporte de humo y carga
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: reporte-despliegue
           path: |
