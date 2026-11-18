@@ -22,7 +22,7 @@ final class Personas {
         }
         Set<String> vistas = new HashSet<>();
         for (String p : personas) {
-            if (p == null || p.isBlank()) {
+            if (!org.springframework.util.StringUtils.hasText(p)) {
                 throw new IllegalArgumentException("Cada persona debe tener un nombre");
             }
             if (!vistas.add(p.trim().toLowerCase())) {
