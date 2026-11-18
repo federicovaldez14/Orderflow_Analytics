@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: "17", cache: maven }
       - name: Compilar código y pruebas (resuelve todas las dependencias)
@@ -49,7 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: "17", cache: maven }
       - name: Pruebas unitarias + umbral de cobertura del núcleo (JaCoCo, líneas >= 80 %)
@@ -69,7 +69,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: "17", cache: maven }
       - name: Integración (H2 y PostgreSQL con Testcontainers) y sistema por HTTP
@@ -87,7 +87,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: "17", cache: maven }
       - name: Funciones de aptitud de la hexagonal (ArchUnit, ADR-001)
@@ -105,7 +105,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: "17", cache: maven }
       - name: Flujos del POS web con Chrome sin ventana (Page Object Model)
@@ -136,7 +136,7 @@ jobs:
           - lenguaje: javascript-typescript
             modo: none
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v4
         if: matrix.lenguaje == 'java-kotlin'
         with: { distribution: temurin, java-version: "17", cache: maven }
@@ -169,7 +169,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: "17", cache: maven }
       - name: Resolver dependencias en el caché local (Trivy lo lee sin consultar Maven Central)
@@ -195,7 +195,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Quality gate (cero secretos en el código y en todo el historial de Git)
@@ -220,7 +220,7 @@ jobs:
     outputs:
       imagen: ${{ steps.datos.outputs.imagen }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Nombre de la imagen (etiquetada con el SHA del commit, nunca solo latest)
         id: datos
         run: |
@@ -271,7 +271,7 @@ jobs:
       name: produccion
       url: ${{ vars.URL_DESPLIEGUE }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Desplegar la imagen en Render y esperar a que responda la versión nueva
         env:
           RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}

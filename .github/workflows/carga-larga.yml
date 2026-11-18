@@ -29,7 +29,7 @@ jobs:
     # La clave del administrador es un secreto del entorno produccion
     environment: produccion
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Flujo de pedidos (Retos 1 y 2)
         run: >
           docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/w" -w /w -e BASE_URL="${{ vars.URL_DESPLIEGUE }}"
